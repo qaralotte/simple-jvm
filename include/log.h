@@ -1,18 +1,17 @@
-//
-// Created by qaralotte on 2020/12/12.
-//
+#ifndef JVM_LOG_H
+#define JVM_LOG_H
 
-#ifndef SIMPLE_JVM_LOG_H
-#define SIMPLE_JVM_LOG_H
-
+#include <iostream>
+#include <string>
 #include <cstdarg>
+#include <functional>
 
-#define ASSERT(con, fmt, ...) con ? [](){}() : ERROR(fmt, ## __VA_ARGS__)
+#include "std.h"
 
-#define DEBUG(fmt, ...) makeDebug(__FILE__, __LINE__, fmt, ## __VA_ARGS__)
-#define ERROR(fmt, ...) makeError(__FILE__, __LINE__, fmt, ## __VA_ARGS__)
+#define DEBUG(fmt, ...) inFuncLog(__FILE__, __LINE__, "\033[0;32m", (fmt), ##__VA_ARGS__)
+#define ERROR(fmt, ...) inFuncLog(__FILE__, __LINE__, "\033[0;31m", (fmt), ##__VA_ARGS__)
+#define WARNING(fmt, ...) inFuncLog(__FILE__, __LINE__, "\033[0;33m", (fmt), ##__VA_ARGS__)
 
-void makeDebug(const char *, int, const char *, ...);
-__attribute__((noreturn)) void makeError(const char *, int, const char *, ...);
+void inFuncLog(const string &file, int line, const char *color, const char *fmt, ...);
 
-#endif //SIMPLE_JVM_LOG_H
+#endif //JVM_LOG_H

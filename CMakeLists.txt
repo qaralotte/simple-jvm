@@ -1,11 +1,9 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.19)
+project(jvm)
 include_directories(.)
-project(simple_jvm)
-set(CMAKE_CXX_STANDARD 11)
 
-find_package(Java 1.8 REQUIRED)
+set(CMAKE_CXX_STANDARD 17)
+set(JVM_SRC include/classfile/classfile.h include/classfile/constant.h include/classfile/std.h include/std.h include/log.h src/classfile/constant.cpp include/classfile/reader.h src/classfile/reader.cpp src/log.cpp include/classfile/field.h include/classfile/method.h include/classfile/attribute.h src/classfile/attribute.cpp include/finder.h src/finder.cpp include/config.h include/cmd.h src/cmd.cpp)
+set(JVM_LIB lib/zip_file.hpp )
 
-add_definitions(-D PROJECT_SOURCE_DIR=${PROJECT_SOURCE_DIR})
-
-set(JVM_SRC include/jvm/classfile/classfile.h include/type.h include/jvm/engine/loader.h src/jvm/engine/loader.cpp include/log.h src/log.cpp include/jvm/engine/engine.h src/jvm/engine/engine.cpp include/jvm/classfile/constant.h include/jvm/classfile/field.h)
-add_executable(simple_jvm src/main.cpp ${JVM_SRC})
+add_executable(jvm src/engine.cpp ${JVM_SRC} ${JVM_LIB})

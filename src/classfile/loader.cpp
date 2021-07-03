@@ -66,19 +66,17 @@ method_info ClassLoader::readMethod() {
 
 // public:
 
-ClassLoader::ClassLoader(const string &_class_name) : class_name(_class_name) {
-    classfinder::ClassFinder finder(_class_name);
-    auto data = finder.findClass();
-    if (data.empty()) {
+ClassLoader::ClassLoader(ClassPath path) : class_name(path.class_name) {
+    if (path.type == classpath::NOT_FOUND) {
         ERROR("ClassNotFoundException: %s.class", class_name.c_str());
         exit(0);
     }
-    bytes = data;
+    bytes = path.read();
 }
 
 /* 加载class文件到缓冲区 */
 ClassFile ClassLoader::load() {
-    DEBUG("开始加载 %s", class_name.c_str());
+    DEBUG("开始读取 %s", class_name.c_str());
 
     /* magic == 0xCAFEBABE ? */
     if (readU4() != 0xCAFEBABE) {
@@ -103,6 +101,7 @@ ClassFile ClassLoader::load() {
     clazz.constant_pool.resize(readU2());
     for (int i = 1; i < clazz.constant_pool.size(); ++i) {
         clazz.constant_pool[i] = readConstant();
+        if (clazz.constant_pool[i] -> tag == LONG || clazz.constant_pool[i] -> tag == DOUBLE) i += 1;
     }
 
     /* access_flags */
@@ -138,7 +137,7 @@ ClassFile ClassLoader::load() {
         attribute = readAttribute();
     }
 
-    DEBUG("%s 加载完成", class_name.c_str());
+    DEBUG("%s 成功加载到 ClassFile", class_name.c_str());
 
     return clazz;
 }

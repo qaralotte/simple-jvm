@@ -4,20 +4,21 @@
 #include <string>
 
 #include "include/std.h"
+#include "include/classpath.h"
 
 namespace classfinder {
+
     class ClassFinder {
     private:
         string classname;
     private:
-        vector<uchar> readBinary(const string &);
         string mergePath(string, string);
         vector<string> handleClasspath();
-        vector<uchar> findInDir(const string &, bool);
-        vector<uchar> findInJar(const string &);
+        ClassPath findInDir(const string &, bool);
+        ClassPath findInJar(const string &);
     public:
         ClassFinder(const string &_classname) : classname(_classname + ".class") {};
-        vector<uchar> findClass();
+        ClassPath findClass();
     };
 }
 

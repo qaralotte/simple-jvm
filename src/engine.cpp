@@ -7,6 +7,18 @@
 #include "include/runtime/thread.h"
 #include "include/opcode/interpreter.h"
 
+#include "include/runtime/loader.h"
+#include "include/runtime/metaspace/clazz.h"
+
+__unused shared_ptr<classfile::attribute_info> findAttributeInMethod(classfile::method_info method, string name) {
+    for (auto attribute : method.attributes) {
+        if (attribute -> name == name) {
+            return attribute;
+        }
+    }
+    return nullptr;
+}
+
 [[noreturn]] __unused void test(runtime::JVMThread thread, vector<classfile::u1> code) {
     DEBUG("----- 以下为测试数据 -----");
     auto frame = thread.getStack().pop();
@@ -19,22 +31,11 @@
     }
 }
 
-shared_ptr<classfile::attribute_info> findAttributeInMethod(classfile::method_info method, string name) {
-    for (auto attribute : method.attributes) {
-        if (attribute -> name == name) {
-            return attribute;
-        }
-    }
-    return nullptr;
-}
+__unused void test0() {
+    DEBUG("----- 以下为测试数据 -----");
+    auto rclazz = runtime::ClassLoader::loadClass("Main");
 
-/* 启动虚拟机 */
-void start() {
-    DEBUG("开始启动 JVM");
-
-    classfile::ClassLoader loader("Main");
-    loader.load();
-
+    /*
     auto main = loader.getMain();
     if (main != nullopt) {
         shared_ptr<classfile::Code> code_attr = static_pointer_cast<classfile::Code>(findAttributeInMethod(main.value(), "Code"));
@@ -48,6 +49,13 @@ void start() {
 
         test(thread, code);
     }
+     */
+}
+
+/* 启动虚拟机 */
+void start() {
+    DEBUG("开始启动 JVM");
+    test0();
 }
 
 

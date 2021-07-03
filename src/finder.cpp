@@ -3,7 +3,6 @@
 #include <regex>
 
 #include "include/finder.h"
-#include "include/log.h"
 #include "include/config.h"
 #include "include/cmd.h"
 
@@ -12,34 +11,6 @@
 using namespace classfinder;
 
 // private:
-
-// 读取文件二进制数据
-vector<uchar> ClassFinder::readBinary(const string &path) {
-    vector<uchar> bytes;
-    ifstream fs(path, ios::binary);
-    if (fs.fail()) {
-        ERROR("打开class文件[%s.class]出错", path.c_str());
-        fs.close();
-        exit(0);
-    }
-
-    /* 获取文件大小 */
-    fs.seekg(0, ios::end);
-    uint fsize = fs.tellg();
-    fs.seekg(0, ios::beg);
-
-    /* 读取内容到bytes缓冲区 */
-    bytes.resize(fsize);
-    fs.read(reinterpret_cast<char *>(bytes.data()), fsize);
-    if (bytes.empty()) {
-        ERROR("%s 读取失败", path.c_str());
-        fs.close();
-        exit(0);
-    }
-
-    fs.close();
-    return bytes;
-}
 
 // 处理classpath (xxxx;xxxx -> {xxxx, xxxx})
 vector<string> ClassFinder::handleClasspath() {
@@ -58,8 +29,8 @@ string ClassFinder::mergePath(string ori_path, string file_path) {
 }
 
 // 遍历文件夹
-vector<uchar> ClassFinder::findInDir(const string &oripath, bool traverse_next) {
-    if (Cmd::classpath.empty()) return vector<uchar>();
+ClassPath ClassFinder::findInDir(const string &oripath, bool traverse_next) {
+    if (Cmd::classpath.empty()) return ClassPath(classpath::NOT_FOUND);
 
     /* 广搜 */
     queue<filesystem::directory_iterator> filelistque;
@@ -73,26 +44,22 @@ vector<uchar> ClassFinder::findInDir(const string &oripath, bool traverse_next) 
             } else {
                 string pkgpath = mergePath(oripath, file.path().string());
                 if (pkgpath == classname) {
-                    return readBinary(file.path());
+                    return ClassPath(classpath::DIR, file.path().string(), classname);
                 }
             }
         }
     }
-    return vector<uchar>();
+    return ClassPath(classpath::NOT_FOUND);
 }
 
 // 遍历jar/zip包
-vector<uchar> ClassFinder::findInJar(const string &jarpath) {
+ClassPath ClassFinder::findInJar(const string &jarpath) {
     vector<uchar> data;
     miniz_cpp::zip_file zfile(jarpath);
     if (zfile.has_file(classname)) {
-        auto oridata = zfile.read(classname);
-        for (char ch : oridata) {
-            data.push_back(ch);
-        }
-        return data;
+        return ClassPath(classpath::JAR, jarpath, classname);
     }
-    return vector<uchar>();
+    return ClassPath(classpath::NOT_FOUND);
 }
 
 // public:
@@ -100,7 +67,7 @@ vector<uchar> ClassFinder::findInJar(const string &jarpath) {
 /* 双亲委派模型 */
 /* Application -> Extension -> User */
 
-vector<uchar> ClassFinder::findClass() {
+ClassPath ClassFinder::findClass() {
 
     // 提取文件后缀名
     auto getSuffix = [&](string path) -> string {
@@ -113,24 +80,24 @@ vector<uchar> ClassFinder::findClass() {
     };
 
     // 遍历文件夹
-    auto traverseDir = [&](string dirpath) -> vector<uchar> {
+    auto traverseDir = [&](string dirpath) -> ClassPath {
         filesystem::path path(dirpath);
         filesystem::directory_iterator filelists(path);
         for (auto file : filelists) {
             if (file.status().type() != filesystem::file_type::directory) {
                 if (getSuffix(file.path().string()) == "class") {
                     if (mergePath(dirpath, file.path().string()) == classname) {
-                        return readBinary(file.path().string());
+                        return ClassPath(classpath::DIR, file.path().string(), classname);
                     }
                 } else if (getSuffix(file.path().string()) == "jar" || getSuffix(file.path().string()) == "zip") {
                     return findInJar(file.path().string());
                 }
             }
         }
-        return vector<uchar>();
+        return ClassPath(classpath::NOT_FOUND);
     };
 
-    vector<uchar> result;
+    ClassPath result(classpath::NOT_FOUND);
 
     // Application (<classpath>)
     if (!Cmd::classpath.empty()) {
@@ -150,11 +117,11 @@ vector<uchar> ClassFinder::findClass() {
         }
     }
     // Extension (<JAVA_HOME>/lib/ext)
-    if (result.empty()) {
+    if (result.type == classpath::NOT_FOUND) {
         result = traverseDir(JAVA_HOME + "/lib/ext");
     }
     // Bootstrap (<JAVA_HOME>/lib)
-    if (result.empty()) {
+    if (result.type == classpath::NOT_FOUND) {
         result = traverseDir(JAVA_HOME + "/lib");
     }
     return result;

@@ -30,10 +30,9 @@ namespace classfile {
         method_info readMethod();
         shared_ptr<attribute_info> readAttribute(); // impl in attribute.cpp
     public:
-        ClassLoader(const string &);
+        ClassLoader(ClassPath);
         ClassFile load();
         optional<method_info> getMain();
-        shared_ptr<attribute_info> findAttributeInMethod(method_info, string);
     };
 }
 

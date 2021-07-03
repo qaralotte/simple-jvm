@@ -1,7 +1,8 @@
-#ifndef JVM_CLASSFILE_READER_H
-#define JVM_CLASSFILE_READER_H
+#ifndef JVM_CLASSFILE_LOADER_H
+#define JVM_CLASSFILE_LOADER_H
 
 #include <memory>
+#include <optional>
 
 #include "classfile.h"
 #include "constant.h"
@@ -12,7 +13,7 @@
 #include "include/finder.h"
 
 namespace classfile {
-    class ClassReader {
+    class ClassLoader {
     private:
         string class_name;
         vector<u1> bytes;
@@ -29,11 +30,11 @@ namespace classfile {
         method_info readMethod();
         shared_ptr<attribute_info> readAttribute(); // impl in attribute.cpp
     public:
-        static string jdk_path;
-    public:
-        ClassReader(const string &);
-        ClassFile read();
+        ClassLoader(const string &);
+        ClassFile load();
+        optional<method_info> getMain();
+        shared_ptr<attribute_info> findAttributeInMethod(method_info, string);
     };
 }
 
-#endif //JVM_CLASSFILE_READER_H
+#endif //JVM_CLASSFILE_LOADER_H

@@ -1,12 +1,12 @@
 #include <functional>
 
-#include "include/classfile/reader.h"
+#include "include/classfile/loader.h"
 #include "include/classfile/attribute.h"
 #include "include/classfile/constant.h"
 
 using namespace classfile;
 
-shared_ptr<attribute_info> ClassReader::readAttribute() {
+shared_ptr<attribute_info> ClassLoader::readAttribute() {
     jstring name = ConstantUtils::getConstant<Utf8>(clazz.constant_pool, readU2()) -> value;
     u4 attribute_length = readU4();
 

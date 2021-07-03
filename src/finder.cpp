@@ -13,12 +13,12 @@ using namespace classfinder;
 
 // private:
 
-// 读取IO文件
-vector<uchar> ClassFinder::readByIO(const string &path) {
+// 读取文件二进制数据
+vector<uchar> ClassFinder::readBinary(const string &path) {
     vector<uchar> bytes;
     ifstream fs(path, ios::binary);
     if (fs.fail()) {
-        ERROR("打开class文件[%s]出错", path.c_str());
+        ERROR("打开class文件[%s.class]出错", path.c_str());
         fs.close();
         exit(0);
     }
@@ -32,7 +32,7 @@ vector<uchar> ClassFinder::readByIO(const string &path) {
     bytes.resize(fsize);
     fs.read(reinterpret_cast<char *>(bytes.data()), fsize);
     if (bytes.empty()) {
-        ERROR("class文件[%s]读取失败", path.c_str());
+        ERROR("%s 读取失败", path.c_str());
         fs.close();
         exit(0);
     }
@@ -43,7 +43,7 @@ vector<uchar> ClassFinder::readByIO(const string &path) {
 
 // 处理classpath (xxxx;xxxx -> {xxxx, xxxx})
 vector<string> ClassFinder::handleClasspath() {
-    string classpath = Cmd::get("classpath");
+    string classpath = Cmd::classpath;
     regex re(";");
     return vector<string> {
             sregex_token_iterator(classpath.begin(), classpath.end(), re, -1),
@@ -59,7 +59,7 @@ string ClassFinder::mergePath(string ori_path, string file_path) {
 
 // 遍历文件夹
 vector<uchar> ClassFinder::findInDir(const string &oripath, bool traverse_next) {
-    if (Cmd::get("classpath").empty()) return vector<uchar>();
+    if (Cmd::classpath.empty()) return vector<uchar>();
 
     /* 广搜 */
     queue<filesystem::directory_iterator> filelistque;
@@ -73,7 +73,7 @@ vector<uchar> ClassFinder::findInDir(const string &oripath, bool traverse_next) 
             } else {
                 string pkgpath = mergePath(oripath, file.path().string());
                 if (pkgpath == classname) {
-                    return readByIO(file.path());
+                    return readBinary(file.path());
                 }
             }
         }
@@ -120,7 +120,7 @@ vector<uchar> ClassFinder::findClass() {
             if (file.status().type() != filesystem::file_type::directory) {
                 if (getSuffix(file.path().string()) == "class") {
                     if (mergePath(dirpath, file.path().string()) == classname) {
-                        return readByIO(file.path().string());
+                        return readBinary(file.path().string());
                     }
                 } else if (getSuffix(file.path().string()) == "jar" || getSuffix(file.path().string()) == "zip") {
                     return findInJar(file.path().string());
@@ -133,7 +133,7 @@ vector<uchar> ClassFinder::findClass() {
     vector<uchar> result;
 
     // Application (<classpath>)
-    if (!Cmd::get("classpath").empty()) {
+    if (!Cmd::classpath.empty()) {
         auto classpaths = handleClasspath();
         for (string classpath : classpaths) {
             if (classpath.back() == '*') {

@@ -10,7 +10,7 @@ namespace classfinder {
     private:
         string classname;
     private:
-        vector<uchar> readByIO(const string &);
+        vector<uchar> readBinary(const string &);
         string mergePath(string, string);
         vector<string> handleClasspath();
         vector<uchar> findInDir(const string &, bool);

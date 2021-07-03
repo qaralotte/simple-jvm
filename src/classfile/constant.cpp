@@ -1,13 +1,13 @@
 #include <numeric>
 #include <cmath>
 
-#include "include/classfile/reader.h"
+#include "include/classfile/loader.h"
 #include "include/log.h"
 
 using namespace classfile;
 
 // 读取常量池中的单个常量
-shared_ptr<cp_info> ClassReader::readConstant() {
+shared_ptr<cp_info> ClassLoader::readConstant() {
     u1 tag = readU1();
     switch (tag) {
         case UTF8: {

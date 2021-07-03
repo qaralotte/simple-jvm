@@ -3,7 +3,16 @@
 #include "include/cmd.h"
 
 map<string, string> Cmd::mapper;
+string Cmd::classpath;
+uint Cmd::Xss;
 
+// private:
+string Cmd::get(string key) {
+    if (mapper.find(key) == mapper.end()) return string();
+    return mapper[key];
+}
+
+// public:
 void Cmd::config(vector<string> cmd_vec) {
     for (string cmd : cmd_vec) {
         if (cmd.find('=') == string::npos) continue; // 无效命令
@@ -14,9 +23,8 @@ void Cmd::config(vector<string> cmd_vec) {
         };
         mapper[keyvalue[0]] = keyvalue[1];
     }
-}
 
-string Cmd::get(string key) {
-    if (mapper.find(key) == mapper.end()) return string();
-    return mapper[key];
+    // classpath:
+    classpath = get("classpath");
+    Xss = stoi(get("Xss")); // todo 自动转化
 }

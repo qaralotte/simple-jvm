@@ -2,7 +2,7 @@
 
 #include "include/log.h"
 
-#include "include/classfile/reader.h"
+#include "include/classfile/loader.h"
 
 using namespace classfile;
 
@@ -11,25 +11,25 @@ using namespace classfile;
 // private:
 
 /* 读取二进制码并把指针偏移n个单位 */
-u1 ClassReader::readU1() {
+u1 ClassLoader::readU1() {
     u1 byte = bytes[offset++];
     return byte;
 }
 
-u2 ClassReader::readU2() {
+u2 ClassLoader::readU2() {
     u1 byte1 = readU1();
     u1 byte2 = readU1();
     return (u2) byte2 | (byte1 << 8);
 }
 
-u4 ClassReader::readU4() {
+u4 ClassLoader::readU4() {
     u2 byte1 = readU2();
     u2 byte2 = readU2();
     return (u4) byte2 | (byte1 << 16);
 }
 
 /* 读取 (this / super) class并返回class名字 */
-jstring ClassReader::readClass() {
+jstring ClassLoader::readClass() {
     u2 class_index = readU2();
     if (class_index == 0) {
         return "java/lang/Object";
@@ -40,7 +40,7 @@ jstring ClassReader::readClass() {
 }
 
 /* 读取field和method (两个结构相同) */
-field_info ClassReader::readField() {
+field_info ClassLoader::readField() {
     field_info info;
     info.access_flags = readU2();
     info.name = ConstantUtils::getConstant<Utf8>(clazz.constant_pool, readU2()) -> value;
@@ -52,7 +52,7 @@ field_info ClassReader::readField() {
     return info;
 }
 
-method_info ClassReader::readMethod() {
+method_info ClassLoader::readMethod() {
     method_info info;
     info.access_flags = readU2();
     info.name = ConstantUtils::getConstant<Utf8>(clazz.constant_pool, readU2()) -> value;
@@ -66,7 +66,7 @@ method_info ClassReader::readMethod() {
 
 // public:
 
-ClassReader::ClassReader(const string &_class_name) : class_name(_class_name) {
+ClassLoader::ClassLoader(const string &_class_name) : class_name(_class_name) {
     classfinder::ClassFinder finder(_class_name);
     auto data = finder.findClass();
     if (data.empty()) {
@@ -77,7 +77,7 @@ ClassReader::ClassReader(const string &_class_name) : class_name(_class_name) {
 }
 
 /* 加载class文件到缓冲区 */
-ClassFile ClassReader::read() {
+ClassFile ClassLoader::load() {
     DEBUG("开始加载 %s", class_name.c_str());
 
     /* magic == 0xCAFEBABE ? */
@@ -141,4 +141,13 @@ ClassFile ClassReader::read() {
     DEBUG("%s 加载完成", class_name.c_str());
 
     return clazz;
+}
+
+optional<method_info> ClassLoader::getMain() {
+    for (auto method : clazz.methods) {
+        if (method.name == "main" && method.descriptor == "([Ljava/lang/String;)V") {
+            return method;
+        }
+    }
+    return nullopt;
 }

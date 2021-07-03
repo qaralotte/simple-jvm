@@ -8,13 +8,16 @@
 #include "config.h"
 
 class Cmd {
-public:
+private:
     static map<string, string> mapper;
+private:
+    static string get(string);
+public:
+    static string classpath;
+    static uint Xss;
 public:
     Cmd() = delete;
-public:
     static void config(vector<string>);
-    static string get(string);
 };
 
 #endif //JVM_CMD_H

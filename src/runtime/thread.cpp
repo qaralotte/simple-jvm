@@ -8,10 +8,11 @@
 using namespace runtime;
 
 /* 栈帧 */
-JVMFrame::JVMFrame(JVMThread *thread, uint max_locals, uint max_stack) {
-    self_thread = thread;
-    locals = LocalVariableTable(max_locals);
-    stack = OperandStack(max_stack);
+JVMFrame::JVMFrame(shared_ptr<JVMThread> _thread, shared_ptr<Method> _method) {
+    locals = VariableTable(_method -> max_locals);
+    stack = OperandStack(_method -> max_stack);
+    method = _method;
+    thread = _thread;
 }
 
 /* 栈 */
@@ -44,6 +45,10 @@ JVMFrame JVMStack::pop() {
 JVMThread::JVMThread() {
     pc = 0;
     stack = JVMStack(Cmd::Xss);
+}
+
+shared_ptr<JVMThread> JVMThread::init() {
+    return make_shared<JVMThread>();
 }
 
 void JVMThread::setPC(uint _pc) {

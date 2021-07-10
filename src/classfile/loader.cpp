@@ -68,7 +68,7 @@ method_info ClassLoader::readMethod() {
 
 ClassLoader::ClassLoader(ClassPath path) : class_name(path.class_name) {
     if (path.type == classpath::NOT_FOUND) {
-        ERROR("ClassNotFoundException: %s.class", class_name.c_str());
+        ERROR("ClassNotFoundException: %s", class_name.c_str());
         exit(0);
     }
     bytes = path.read();
@@ -140,13 +140,4 @@ ClassFile ClassLoader::load() {
     DEBUG("%s 成功加载到 ClassFile", class_name.c_str());
 
     return clazz;
-}
-
-optional<method_info> ClassLoader::getMain() {
-    for (auto method : clazz.methods) {
-        if (method.name == "main" && method.descriptor == "([Ljava/lang/String;)V") {
-            return method;
-        }
-    }
-    return nullopt;
 }

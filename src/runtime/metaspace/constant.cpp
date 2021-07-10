@@ -6,7 +6,8 @@
 
 using namespace runtime;
 
-ConstantPool::ConstantPool(Clazz *_clazz, vector<shared_ptr<classfile::cp_info>> constant_pool) {
+#include <iostream>
+shared_ptr<ConstantPool> ConstantPool::init(shared_ptr<Clazz> _clazz, vector<shared_ptr<classfile::cp_info>> constant_pool) {
     constants.resize(constant_pool.size());
     for (int i = 1; i < constant_pool.size(); ++i) {
         clazz = _clazz;
@@ -56,34 +57,36 @@ ConstantPool::ConstantPool(Clazz *_clazz, vector<shared_ptr<classfile::cp_info>>
                 constants[i] = constant;
                 break;
             }
+            /* 引用 */
             case classfile::Constant::CLASS: {
                 auto origin_info = static_pointer_cast<classfile::Class>(info);
-                auto constant = make_shared<ClassRef>(ClassRef(this, constant_pool, origin_info));
+                auto constant = make_shared<ClassRef>(ClassRef(shared_from_this(), constant_pool, origin_info));
                 constant -> tag = ConstantType::CLASSREF;
                 constants[i] = constant;
                 break;
             }
             case classfile::Constant::FIELDREF: {
                 auto origin_info = static_pointer_cast<classfile::Field>(info);
-                auto constant = make_shared<FieldRef>(FieldRef(this, constant_pool, origin_info));
+                auto constant = make_shared<FieldRef>(FieldRef(shared_from_this(), constant_pool, origin_info));
                 constant -> tag = ConstantType::FIELDREF;
                 constants[i] = constant;
                 break;
             }
             case classfile::Constant::METHODREF: {
                 auto origin_info = static_pointer_cast<classfile::Method>(info);
-                auto constant = make_shared<MethodRef>(MethodRef(this, constant_pool, origin_info));
+                auto constant = make_shared<MethodRef>(MethodRef(shared_from_this(), constant_pool, origin_info));
                 constant -> tag = ConstantType::METHODREF;
                 constants[i] = constant;
                 break;
             }
             case classfile::Constant::INTERFACE_METHODREF: {
                 auto origin_info = static_pointer_cast<classfile::InterfaceMethodref>(info);
-                auto constant = make_shared<InterfaceMethodRef>(InterfaceMethodRef(this, constant_pool, origin_info));
+                auto constant = make_shared<InterfaceMethodRef>(InterfaceMethodRef(shared_from_this(), constant_pool, origin_info));
                 constant -> tag = ConstantType::INTERFACE_METHODREF;
                 constants[i] = constant;
                 break;
             }
         }
     }
+    return shared_from_this();
 }

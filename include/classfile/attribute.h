@@ -95,6 +95,108 @@ namespace classfile {
         };
     }
 
+    namespace annotation {
+
+        struct element_value {
+            u1 tag;
+        };
+
+        struct element_value_pair {
+            u2 element_name_index;
+            shared_ptr<element_value> value;
+        };
+
+        struct annotation {
+            u2 type_index;
+            vector<element_value_pair> element_value_pairs;
+        };
+
+        struct const_value : element_value {
+            u2 index;
+        };
+
+        struct enum_const_value : element_value {
+            u2 type_name_index;
+            u2 const_name_index;
+        };
+
+        struct class_info : public element_value {
+            u2 index;
+        };
+
+        struct annotation_value : public element_value {
+            annotation value;
+        };
+
+        struct array_value : public element_value {
+            vector<shared_ptr<element_value>> value;
+        };
+
+        struct path {
+            u1 type_path_kind;
+            u1 type_argument_index;
+        };
+
+        struct target {
+            u1 target_type;
+        };
+
+        struct type_parameter_target : target {
+            u1 type_parameter_index;
+        };
+
+        struct supertype_target : target {
+            u2 supertype_index;
+        };
+
+        struct type_parameter_bound_target : target {
+            u1 type_parameter_index;
+            u1 bound_index;
+        };
+
+        struct empty_target : target {
+            // nothing
+        };
+
+        struct formal_parameter_target : target {
+            u1 formal_parameter_index;
+        };
+
+        struct throws_target : target {
+            u2 throws_type_index;
+        };
+
+        struct table {
+            u2 start_pc;
+            u2 length;
+            u2 index;
+        };
+
+        struct localvar_target : target {
+            vector<table> table;
+        };
+
+        struct catch_target : target {
+            u2 exception_table_index;
+        };
+
+        struct offset_target : target {
+            u2 offset;
+        };
+
+        struct type_argument_target : target {
+            u2 offset;
+            u1 type_argument_index;
+        };
+
+        struct type_annotation {
+            shared_ptr<target> target;
+            path type_path;
+            u2 type_index;
+            vector<element_value_pair> element_value_pairs;
+        };
+    }
+
     namespace bootstrap_methods {
         struct bootstrap_methods {
             u2 bootstrap_method_ref;
@@ -180,9 +282,33 @@ namespace classfile {
         // nothing
     };
 
-    /* todo Annotation */
+    struct RuntimeVisibleAnnotations : attribute_info {
+        vector<annotation::annotation> annotations;
+    };
 
-    /* todo Annotation */
+    struct RuntimeInvisibleAnnotations : attribute_info {
+        vector<annotation::annotation> annotations;
+    };
+
+    struct RuntimeVisibleParameterAnnotations : attribute_info {
+        vector<vector<annotation::annotation>> parameter_annotations;
+    };
+
+    struct RuntimeInvisibleParameterAnnotations : attribute_info {
+        vector<vector<annotation::annotation>> parameter_annotations;
+    };
+
+    struct RuntimeVisibleTypeAnnotations : attribute_info {
+        vector<annotation::type_annotation> annotations;
+    };
+
+    struct RuntimeInvisibleTypeAnnotations : attribute_info {
+        vector<annotation::type_annotation> annotations;
+    };
+
+    struct AnnotationDefault : attribute_info {
+        shared_ptr<annotation::element_value> default_value;
+    };
 
     struct BootstrapMethods : attribute_info {
         vector<bootstrap_methods::bootstrap_methods> bootstrap_methods;

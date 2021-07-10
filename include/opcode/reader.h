@@ -11,11 +11,11 @@
 namespace opcode {
     class Reader {
     private:
-        runtime::JVMThread *self_thread;
         vector<classfile::u1> code;
         uint pc;
+        shared_ptr<runtime::JVMThread> thread;
     public:
-        Reader(runtime::JVMThread *_thread, vector<classfile::u1> _code) : self_thread(_thread), code(_code), pc(0) {};
+        Reader(shared_ptr<runtime::JVMThread> _thread, vector<classfile::u1> _code) : thread(_thread), code(_code), pc(0) {};
         uint jumpPC(int);
         uint getPC();
     public:

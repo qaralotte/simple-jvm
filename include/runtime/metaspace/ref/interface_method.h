@@ -16,11 +16,12 @@ namespace runtime {
         jstring class_name;
         jstring name;
         jstring descriptor;
-        ConstantPool *constant_pool;
-        Method *method;
-        Clazz *clazz;
+        shared_ptr<ConstantPool> constant_pool;
+        shared_ptr<Method> method;
+        shared_ptr<Clazz> clazz;
     public:
-        InterfaceMethodRef(ConstantPool *, const vector<shared_ptr<classfile::cp_info>> &, shared_ptr<classfile::InterfaceMethodref>);
+        InterfaceMethodRef(shared_ptr<ConstantPool>, const vector<shared_ptr<classfile::cp_info>> &, shared_ptr<classfile::InterfaceMethodref>);
+        shared_ptr<Clazz> resolvedClass();
     };
 }
 

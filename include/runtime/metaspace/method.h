@@ -9,7 +9,7 @@
 
 namespace runtime {
     class Clazz;
-    class Method {
+    class Method : public enable_shared_from_this<Method> {
     public:
         uint16 access_flags;
         jstring name;
@@ -17,11 +17,18 @@ namespace runtime {
         uint16 max_stack;
         uint16 max_locals;
         vector<uint8> code;
-        Clazz *clazz;
+        shared_ptr<Clazz>clazz = nullptr;
     private:
-        Method(Clazz *, classfile::method_info);
+        shared_ptr<Method> init(shared_ptr<Clazz>, classfile::method_info);
     public:
-        static vector<Method> arrayOf(Clazz *, vector<classfile::method_info>);
+        static vector<shared_ptr<Method>> arrayOf(shared_ptr<Clazz>, vector<classfile::method_info>);
+    public:
+        Method() = default;
+        bool haveAccess(uint16);
+        bool isAccessTo(Clazz);
+    public:
+        bool operator==(const Method &) const;
+        bool operator!=(const Method &) const;
     };
 }
 

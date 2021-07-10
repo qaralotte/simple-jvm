@@ -50,13 +50,13 @@ namespace runtime {
     // in ref/*
 
     class Clazz;
-    class ConstantPool {
+    class ConstantPool : public enable_shared_from_this<ConstantPool> {
     public:
         vector<shared_ptr<Constant>> constants;
-        Clazz *clazz;
+        shared_ptr<Clazz> clazz; // !ref
     public:
         ConstantPool() = default;
-        ConstantPool(Clazz *, vector<shared_ptr<classfile::cp_info>>);
+        shared_ptr<ConstantPool> init(shared_ptr<Clazz>, vector<shared_ptr<classfile::cp_info>>);
     };
 }
 

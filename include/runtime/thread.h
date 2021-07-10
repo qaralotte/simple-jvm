@@ -6,7 +6,7 @@
 
 #include "include/std.h"
 
-#include "local_vartable.h"
+#include "vartable_table.h"
 #include "operand_stack.h"
 
 namespace runtime {
@@ -14,13 +14,14 @@ namespace runtime {
     class JVMThread;
     class JVMFrame {
     public:
-        JVMThread *self_thread;
-        LocalVariableTable locals;
+        VariableTable locals;
         OperandStack stack;
         // todo 动态连接 Dynamic Linking
         // todo 返回地址 Return Address
+        shared_ptr<Method> method; // !ref
+        shared_ptr<JVMThread> thread; // !ref
     public:
-        JVMFrame(JVMThread *, uint max_locals, uint max_stack);
+        JVMFrame(shared_ptr<JVMThread>, shared_ptr<Method>);
     };
 
     class JVMStack {
@@ -40,6 +41,7 @@ namespace runtime {
         uint pc;
     public:
         JVMThread();
+        shared_ptr<JVMThread> init();
         void setPC(uint);
         uint getPC();
         JVMStack &getStack();

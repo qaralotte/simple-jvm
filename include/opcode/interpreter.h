@@ -19,6 +19,7 @@ namespace opcode {
         void nop();
         template<typename T> void constn(T);
         template<typename T> void push();
+        void ldc(bool = false, bool = false);
 
         /* 加载 */
         template<typename T> void load();
@@ -58,6 +59,19 @@ namespace opcode {
 
         /* 控制 */
         void _goto();
+
+        /* 引用 */
+        void getstatic();
+        void putstatic();
+        void getfield();
+        void putfield();
+
+        void invokevirtual();
+        void invokespecial();
+
+        void _new();
+        void checkcast();
+        void instanceof();
     public:
         Interpreter(runtime::JVMFrame &_frame, Reader &_reader) : frame(_frame), reader(_reader) {};
         void execute(uint);

@@ -83,54 +83,54 @@ shared_ptr<cp_info> ClassLoader::readConstant() {
         }
         case STRING: {
             auto info = make_shared<String>();
-            info -> tag = CLASS;
+            info -> tag = STRING;
             info -> string_index = readU2();
             return info;
         }
         case FIELDREF: {
             auto info = make_shared<Field>();
-            info -> tag = CLASS;
+            info -> tag = FIELDREF;
             info -> class_index = readU2();
             info -> name_and_type_index = readU2();
             return info;
         }
         case METHODREF: {
             auto info = make_shared<Method>();
-            info -> tag = CLASS;
+            info -> tag = METHODREF;
             info -> class_index = readU2();
             info -> name_and_type_index = readU2();
             return info;
         }
         case INTERFACE_METHODREF: {
             auto info = make_shared<InterfaceMethodref>();
-            info -> tag = CLASS;
+            info -> tag = INTERFACE_METHODREF;
             info -> class_index = readU2();
             info -> name_and_type_index = readU2();
             return info;
         }
         case NAME_AND_TYPE: {
             auto info = make_shared<NameAndType>();
-            info -> tag = CLASS;
+            info -> tag = NAME_AND_TYPE;
             info -> name_index = readU2();
             info -> descriptor_index = readU2();
             return info;
         }
         case METHOD_HANDLE: {
             auto info = make_shared<MethodHandle>();
-            info -> tag = CLASS;
+            info -> tag = METHOD_HANDLE;
             info -> reference_kind = readU1();
             info -> reference_index = readU2();
             return info;
         }
         case METHOD_TYPE: {
             auto info = make_shared<MethodType>();
-            info -> tag = CLASS;
+            info -> tag = METHOD_TYPE;
             info -> descriptor_index = readU2();
             return info;
         }
         case INVOKE_DYNAMIC: {
             auto info = make_shared<InvokeDynamic>();
-            info -> tag = CLASS;
+            info -> tag = INVOKE_DYNAMIC;
             info -> bootstrap_method_attr_index = readU2();
             info -> name_and_type_index = readU2();
             return info;

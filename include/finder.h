@@ -11,13 +11,14 @@ namespace classfinder {
     class ClassFinder {
     private:
         string classname;
+        string filename;
     private:
         string mergePath(string, string);
         vector<string> handleClasspath();
         ClassPath findInDir(const string &, bool);
         ClassPath findInJar(const string &);
     public:
-        ClassFinder(const string &_classname) : classname(_classname + ".class") {};
+        ClassFinder(const string &_classname) : classname(_classname), filename(_classname + ".class") {};
         ClassPath findClass();
     };
 }

@@ -7,7 +7,7 @@
 #include "include/std.h"
 
 #include "slot.h"
-#include "heap/object.h"
+#include "metaspace/object.h"
 
 namespace runtime {
     class OperandStack {

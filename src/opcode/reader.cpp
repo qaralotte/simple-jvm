@@ -3,7 +3,7 @@
 using namespace opcode;
 
 uint Reader::jumpPC(int offset) {
-    pc = self_thread -> getPC() + offset;
+    pc = thread -> getPC() + offset;
     return pc;
 }
 

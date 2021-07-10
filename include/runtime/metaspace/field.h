@@ -9,16 +9,25 @@
 
 namespace runtime {
     class Clazz;
-    class Field {
+    class Field : public enable_shared_from_this<Field> {
     public:
         uint16 access_flags;
         jstring name;
         jstring descriptor;
-        Clazz *clazz;
+        uint slot_id;
+        uint constvalue_index;
+        shared_ptr<Clazz> clazz = nullptr;
     private:
-        Field(Clazz *, classfile::field_info);
+        shared_ptr<Field> init(shared_ptr<Clazz>, classfile::field_info);
     public:
-        static vector<Field> arrayOf(Clazz *, vector<classfile::field_info>);
+        Field() = default;
+        static vector<shared_ptr<Field>> arrayOf(shared_ptr<Clazz>, vector<classfile::field_info>);
+    public:
+        bool haveAccess(uint16);
+        bool isAccessTo(Clazz);
+    public:
+        bool operator==(const Field &) const;
+        bool operator!=(const Field &) const;
     };
 }
 

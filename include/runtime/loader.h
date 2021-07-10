@@ -7,15 +7,20 @@
 #include "include/std.h"
 #include "include/classpath.h"
 
-namespace runtime {
+#include "include/runtime/metaspace/clazz.h"
 
-    class Clazz;
+namespace runtime {
     class ClassLoader {
     private:
-        static Clazz loadNonArrayClass(string);
+        string class_name;
+    private:
+        void loadNonArrayClass();
+        void prepare();
     public:
-        static map<string, Clazz> class_map;
-        static Clazz loadClass(string);
+        static map<string, shared_ptr<Clazz>> class_map;
+    public:
+        ClassLoader(string _name) : class_name(_name) {};
+        shared_ptr<Clazz> loadClass();
     };
 }
 

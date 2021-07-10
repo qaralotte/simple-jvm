@@ -43,8 +43,8 @@ ClassPath ClassFinder::findInDir(const string &oripath, bool traverse_next) {
                 if (traverse_next) filelistque.push(filesystem::directory_iterator(file.path()));
             } else {
                 string pkgpath = mergePath(oripath, file.path().string());
-                if (pkgpath == classname) {
-                    return ClassPath(classpath::DIR, file.path().string(), classname);
+                if (pkgpath == filename) {
+                    return ClassPath(classpath::DIR, file.path().string(), filename);
                 }
             }
         }
@@ -56,8 +56,8 @@ ClassPath ClassFinder::findInDir(const string &oripath, bool traverse_next) {
 ClassPath ClassFinder::findInJar(const string &jarpath) {
     vector<uchar> data;
     miniz_cpp::zip_file zfile(jarpath);
-    if (zfile.has_file(classname)) {
-        return ClassPath(classpath::JAR, jarpath, classname);
+    if (zfile.has_file(filename)) {
+        return ClassPath(classpath::JAR, jarpath, filename);
     }
     return ClassPath(classpath::NOT_FOUND);
 }
@@ -86,8 +86,8 @@ ClassPath ClassFinder::findClass() {
         for (auto file : filelists) {
             if (file.status().type() != filesystem::file_type::directory) {
                 if (getSuffix(file.path().string()) == "class") {
-                    if (mergePath(dirpath, file.path().string()) == classname) {
-                        return ClassPath(classpath::DIR, file.path().string(), classname);
+                    if (mergePath(dirpath, file.path().string()) == filename) {
+                        return ClassPath(classpath::DIR, file.path().string(), filename);
                     }
                 } else if (getSuffix(file.path().string()) == "jar" || getSuffix(file.path().string()) == "zip") {
                     return findInJar(file.path().string());
@@ -99,30 +99,36 @@ ClassPath ClassFinder::findClass() {
 
     ClassPath result(classpath::NOT_FOUND);
 
-    // Application (<classpath>)
-    if (!Cmd::classpath.empty()) {
-        auto classpaths = handleClasspath();
-        for (string classpath : classpaths) {
-            if (classpath.back() == '*') {
-                // xxx/* -> xxx
-                result = findInDir(classpath.substr(0, classpath.size() - 2), true);
-            } else {
-                filesystem::path path(classpath);
-                if (status(path).type() == filesystem::file_type::directory) {
-                    result = findInDir(path, false);
-                } else if (getSuffix(path) == "jar" || getSuffix(path) == "zip") {
-                    result = findInJar(path);
-                }
-            }
-        }
-    }
-    // Extension (<JAVA_HOME>/lib/ext)
-    if (result.type == classpath::NOT_FOUND) {
-        result = traverseDir(JAVA_HOME + "/lib/ext");
-    }
     // Bootstrap (<JAVA_HOME>/lib)
     if (result.type == classpath::NOT_FOUND) {
         result = traverseDir(JAVA_HOME + "/lib");
     }
+
+    // Extension (<JAVA_HOME>/lib/ext)
+    if (result.type == classpath::NOT_FOUND) {
+        result = traverseDir(JAVA_HOME + "/lib/ext");
+    }
+
+    // Application (<classpath>)
+    if (result.type == classpath::NOT_FOUND) {
+        if (!Cmd::classpath.empty()) {
+            auto classpaths = handleClasspath();
+            for (string classpath : classpaths) {
+                if (classpath.back() == '*') {
+                    // xxx/* -> xxx
+                    result = findInDir(classpath.substr(0, classpath.size() - 2), true);
+                } else {
+                    filesystem::path path(classpath);
+                    if (status(path).type() == filesystem::file_type::directory) {
+                        result = findInDir(path, false);
+                    } else if (getSuffix(path) == "jar" || getSuffix(path) == "zip") {
+                        result = findInJar(path);
+                    }
+                }
+            }
+        }
+    }
+
+
     return result;
 }

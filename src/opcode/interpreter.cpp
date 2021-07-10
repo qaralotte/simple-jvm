@@ -1,5 +1,11 @@
 #include "include/opcode/interpreter.h"
 #include "include/log.h"
+#include "include/accessflags.h"
+#include "include/descriptor.h"
+
+#include "include/runtime/metaspace/ref/clazz.h"
+#include "include/runtime/metaspace/ref/field.h"
+#include "include/runtime/metaspace/ref/method.h"
 
 using namespace opcode;
 
@@ -25,6 +31,32 @@ template<> void Interpreter::push<jbyte>() {
 
 template<> void Interpreter::push<jshort>() {
     frame.stack.push<jshort>(reader.readShort());
+}
+
+void Interpreter::ldc(bool wide, bool two) {
+    jshort index = wide ? reader.readShort() : reader.readByte();
+    auto constant_pool = frame.method -> clazz -> constant_pool -> constants;
+    if (!two) {
+        if (constant_pool[index] -> tag == runtime::INTEGER) {
+            auto val = static_pointer_cast<runtime::IntegerConstant>(constant_pool[index]) -> value;
+            frame.stack.push<jint>(val);
+        } else if (constant_pool[index] -> tag == runtime::FLOAT) {
+            auto val = static_pointer_cast<runtime::FloatConstant>(constant_pool[index]) -> value;
+            frame.stack.push<jfloat>(val);
+        } else {
+            ERROR("todo: ldc功能未做完"); // todo
+        }
+    } else {
+        if (constant_pool[index] -> tag == runtime::LONG) {
+            auto val = static_pointer_cast<runtime::LongConstant>(constant_pool[index]) -> value;
+            frame.stack.push<jlong>(val);
+        } else if (constant_pool[index] -> tag == runtime::DOUBLE) {
+            auto val = static_pointer_cast<runtime::DoubleConstant>(constant_pool[index]) -> value;
+            frame.stack.push<jdouble>(val);
+        } else {
+            ERROR("todo: ldc功能未做完"); // todo
+        }
+    }
 }
 
 /* 加载 */
@@ -236,6 +268,254 @@ void Interpreter::_goto() {
     reader.jumpPC(offset);
 }
 
+/* 引用 */
+void Interpreter::getstatic() {
+    auto index = reader.readShort();
+    auto constant_pool = frame.method -> clazz -> constant_pool -> constants;
+    auto field_ref = static_pointer_cast<runtime::FieldRef>(constant_pool[index]);
+    auto field = field_ref -> resolvedField();
+    auto clazz = field -> clazz;
+    if (!field -> haveAccess(ACCESS_STATIC)) {
+        ERROR("java.lang.IncompatibleClassChangeError: %s", clazz -> this_name.c_str());
+        exit(0);
+    }
+    auto descriptor = field -> descriptor;
+    auto slot_id = field -> slot_id;
+    auto slots = clazz -> static_vars;
+    if (descriptor == DESC_BOOLEAN ||
+        descriptor == DESC_BYTE ||
+        descriptor == DESC_CHAR ||
+        descriptor == DESC_SHORT ||
+        descriptor == DESC_INT) {
+        frame.stack.push<jint>(slots.get<jint>(slot_id));
+    } else if (descriptor == DESC_FLOAT) {
+        frame.stack.push<jfloat>(slots.get<jfloat>(slot_id));
+    } else if (descriptor == DESC_LONG) {
+        frame.stack.push<jlong>(slots.get<jlong>(slot_id));
+    } else if (descriptor == DESC_DOUBLE) {
+        frame.stack.push<jdouble>(slots.get<jdouble>(slot_id));
+    } else if (descriptor[0] == DESC_ARRAY_HEAD || descriptor[0] == DESC_CLASS_HEAD) {
+        frame.stack.push<runtime::jobject>(slots.get<runtime::jobject>(slot_id));
+    } else {
+        ERROR("未知的 descriptor: %s", descriptor.c_str());
+        exit(0);
+    }
+}
+
+void Interpreter::putstatic() {
+    auto index = reader.readShort();
+    auto cur_method = frame.method;
+    auto cur_clazz = cur_method -> clazz;
+    auto constant_pool = cur_clazz -> constant_pool -> constants;
+    auto field_ref = static_pointer_cast<runtime::FieldRef>(constant_pool[index]);
+    auto field = field_ref -> resolvedField();
+    auto clazz = field -> clazz;
+    if (!field -> haveAccess(ACCESS_STATIC)) {
+        ERROR("java.lang.IncompatibleClassChangeError: %s", clazz -> this_name.c_str());
+        exit(0);
+    }
+    if (field -> haveAccess(ACCESS_FINAL)) {
+        if (*cur_clazz != *clazz || cur_method -> name != "<clinit>") {
+            ERROR("java.lang.IllegalAccessError: %s", clazz -> this_name.c_str());
+            exit(0);
+        }
+    }
+    auto descriptor = field -> descriptor;
+    auto slot_id = field -> slot_id;
+    auto slots = clazz -> static_vars;
+    if (descriptor == DESC_BOOLEAN ||
+        descriptor == DESC_BYTE ||
+        descriptor == DESC_CHAR ||
+        descriptor == DESC_SHORT ||
+        descriptor == DESC_INT) {
+        slots.set<jint>(slot_id, frame.stack.pop<jint>());
+    } else if (descriptor == DESC_FLOAT) {
+        slots.set<jfloat>(slot_id, frame.stack.pop<jfloat>());
+    } else if (descriptor == DESC_LONG) {
+        slots.set<jlong>(slot_id, frame.stack.pop<jlong>());
+    } else if (descriptor == DESC_DOUBLE) {
+        slots.set<jdouble>(slot_id, frame.stack.pop<jdouble>());
+    } else if (descriptor[0] == DESC_ARRAY_HEAD || descriptor[0] == DESC_CLASS_HEAD) {
+        slots.set<runtime::jobject>(slot_id, frame.stack.pop<runtime::jobject>());
+    } else {
+        ERROR("未知的 descriptor: %s", descriptor.c_str());
+        exit(0);
+    }
+}
+
+void Interpreter::getfield() {
+    auto index = reader.readShort();
+    auto constant_pool = frame.method -> clazz -> constant_pool -> constants;
+    auto field_ref = static_pointer_cast<runtime::FieldRef>(constant_pool[index]);
+    auto field = field_ref -> resolvedField();
+    auto clazz = field -> clazz;
+    if (!field -> haveAccess(ACCESS_STATIC)) {
+        ERROR("java.lang.IncompatibleClassChangeError: %s", clazz -> this_name.c_str());
+        exit(0);
+    }
+    auto ref = frame.stack.pop<runtime::jobject>();
+    if (ref == nullptr) {
+        ERROR("java.lang.NullPointerException: %s", ref -> clazz.this_name.c_str());
+    }
+    auto descriptor = field -> descriptor;
+    auto slot_id = field -> slot_id;
+    auto slots = clazz -> static_vars;
+    if (descriptor == DESC_BOOLEAN ||
+        descriptor == DESC_BYTE ||
+        descriptor == DESC_CHAR ||
+        descriptor == DESC_SHORT ||
+        descriptor == DESC_INT) {
+        frame.stack.push<jint>(slots.get<jint>(slot_id));
+    } else if (descriptor == DESC_FLOAT) {
+        frame.stack.push<jfloat>(slots.get<jfloat>(slot_id));
+    } else if (descriptor == DESC_LONG) {
+        frame.stack.push<jlong>(slots.get<jlong>(slot_id));
+    } else if (descriptor == DESC_DOUBLE) {
+        frame.stack.push<jdouble>(slots.get<jdouble>(slot_id));
+    } else if (descriptor[0] == DESC_ARRAY_HEAD || descriptor[0] == DESC_CLASS_HEAD) {
+        frame.stack.push<runtime::jobject>(slots.get<runtime::jobject>(slot_id));
+    } else {
+        ERROR("未知的 descriptor: %s", descriptor.c_str());
+        exit(0);
+    }
+}
+
+void Interpreter::putfield() {
+    auto index = reader.readShort();
+    auto cur_method = frame.method;
+    auto cur_clazz = cur_method -> clazz;
+    auto constant_pool = cur_clazz -> constant_pool -> constants;
+    auto field_ref = static_pointer_cast<runtime::FieldRef>(constant_pool[index]);
+    auto field = field_ref -> resolvedField();
+    auto clazz = field -> clazz;
+    if (!field -> haveAccess(ACCESS_STATIC)) {
+        ERROR("java.lang.IncompatibleClassChangeError: %s", clazz -> this_name.c_str());
+        exit(0);
+    }
+    if (field -> haveAccess(ACCESS_FINAL)) {
+        if (*cur_clazz != *clazz || cur_method -> name != "<init>") {
+            ERROR("java.lang.IllegalAccessError: %s", clazz -> this_name.c_str());
+            exit(0);
+        }
+    }
+    auto descriptor = field -> descriptor;
+    auto slot_id = field -> slot_id;
+    auto slots = clazz -> static_vars;
+    auto isnull = [](runtime::jobject ref) {
+        if (ref == nullptr) {
+            ERROR("java.lang.NullPointerException: %s", ref -> clazz.this_name.c_str());
+        }
+    };
+    if (descriptor == DESC_BOOLEAN ||
+        descriptor == DESC_BYTE ||
+        descriptor == DESC_CHAR ||
+        descriptor == DESC_SHORT ||
+        descriptor == DESC_INT) {
+        auto val = frame.stack.pop<jint>();
+        auto ref = frame.stack.pop<runtime::jobject>();
+        isnull(ref);
+        ref -> field.set<jint>(slot_id, val);
+    } else if (descriptor == DESC_FLOAT) {
+        auto val = frame.stack.pop<jfloat>();
+        auto ref = frame.stack.pop<runtime::jobject>();
+        isnull(ref);
+        ref -> field.set<jfloat>(slot_id, val);
+    } else if (descriptor == DESC_LONG) {
+        auto val = frame.stack.pop<jlong>();
+        auto ref = frame.stack.pop<runtime::jobject>();
+        isnull(ref);
+        ref -> field.set<jlong>(slot_id, val);
+    } else if (descriptor == DESC_DOUBLE) {
+        auto val = frame.stack.pop<jdouble>();
+        auto ref = frame.stack.pop<runtime::jobject>();
+        isnull(ref);
+        ref -> field.set<jdouble>(slot_id, val);
+    } else if (descriptor[0] == DESC_ARRAY_HEAD || descriptor[0] == DESC_CLASS_HEAD) {
+        auto val = frame.stack.pop<runtime::jobject>();
+        auto ref = frame.stack.pop<runtime::jobject>();
+        isnull(ref);
+        ref -> field.set<runtime::jobject>(slot_id, val);
+    } else {
+        ERROR("未知的 descriptor: %s", descriptor.c_str());
+        exit(0);
+    }
+}
+
+void Interpreter::invokevirtual() {
+    uint16 index = reader.readShort();
+    auto constant_pool = frame.method -> clazz -> constant_pool -> constants;
+    auto method_ref = static_pointer_cast<runtime::MethodRef>(constant_pool[index]);
+    if (method_ref -> name == "println") {
+        if (method_ref -> descriptor == "(Z)V" ||
+            method_ref -> descriptor == "(C)V" ||
+            method_ref -> descriptor == "(B)V" ||
+            method_ref -> descriptor == "(S)V" ||
+            method_ref -> descriptor == "(I)V") {
+            printf("%d\n", frame.stack.pop<jint>());
+        } else if (method_ref -> descriptor == "(J)V") {
+            printf("%lld\n", frame.stack.pop<jlong>());
+        } else if (method_ref -> descriptor == "(F)V") {
+            printf("%f\n", frame.stack.pop<jfloat>());
+        } else if (method_ref -> descriptor == "(D)V") {
+            printf("%lf\n", frame.stack.pop<jdouble>());
+        } else {
+            ERROR("println: %s", method_ref -> descriptor.c_str());
+            exit(0);
+        }
+        frame.stack.pop<runtime::jobject>();
+    }
+}
+
+void Interpreter::invokespecial() {
+    uint16 index = reader.readShort();
+}
+
+void Interpreter::_new() {
+    auto index = reader.readShort();
+    auto constant_pool = frame.method -> clazz -> constant_pool -> constants;
+    auto class_ref = static_pointer_cast<runtime::ClassRef>(constant_pool[index]);
+    auto clazz = class_ref -> resolvedClass();
+    if (clazz -> haveAccess(ACCESS_INTERFACE) || clazz -> haveAccess(ACCESS_ABSTRACT)) {
+        ERROR("java.lang.InstantiationError: %s", clazz -> this_name.c_str());
+        exit(0);
+    }
+    runtime::Object ref(*clazz, runtime::VariableTable(clazz -> instance_slot_count));
+    frame.stack.push<runtime::jobject>(runtime::make_jobject(ref));
+}
+
+void Interpreter::instanceof() {
+    auto index = reader.readShort();
+    auto ref = frame.stack.pop<runtime::jobject>();
+    if (ref == nullptr) {
+        frame.stack.push<jint>(0);
+        return;
+    }
+    auto constant_pool = frame.method -> clazz -> constant_pool -> constants;
+    auto class_ref = static_pointer_cast<runtime::ClassRef>(constant_pool[index]);
+    auto clazz = class_ref -> resolvedClass();
+    if (ref ->isInstanceOf(*clazz)) {
+        frame.stack.push<jint>(1);
+    } else {
+        frame.stack.push<jint>(0);
+    }
+
+}
+
+void Interpreter::checkcast() {
+    auto index = reader.readShort();
+    auto ref = frame.stack.pop<runtime::jobject>();
+    if (ref == nullptr) {
+        frame.stack.push<jint>(0);
+        return;
+    }
+    auto constant_pool = frame.method -> clazz -> constant_pool -> constants;
+    auto class_ref = static_pointer_cast<runtime::ClassRef>(constant_pool[index]);
+    auto clazz = class_ref -> resolvedClass();
+    if (!ref -> isInstanceOf(*clazz)) {
+        ERROR("java.lang.ClassCastException: %s", clazz -> this_name.c_str());
+        exit(0);
+    }
+}
 
 // 暂时
 void panic(uint code) {
@@ -245,7 +525,7 @@ void panic(uint code) {
 
 void Interpreter::execute(uint code) {
     if (code == 0x00) nop();
-    if (code == 0x01) constn<shared_ptr<runtime::heap::Object>>(nullptr);
+    if (code == 0x01) constn<runtime::jobject>(nullptr);
     if (code == 0x02) constn<jint>(-1);
     if (code == 0x03) constn<jint>(0);
     if (code == 0x04) constn<jint>(1);
@@ -262,14 +542,14 @@ void Interpreter::execute(uint code) {
     if (code == 0x0F) constn<jdouble>(1);
     if (code == 0x10) push<jbyte>();
     if (code == 0x11) push<jshort>();
-    if (code == 0x12) panic(code); // {}
-    if (code == 0x13) panic(code); // {}
-    if (code == 0x14) panic(code); // {}
+    if (code == 0x12) ldc();
+    if (code == 0x13) ldc(true);
+    if (code == 0x14) ldc(true, true);
     if (code == 0x15) load<jint>();
     if (code == 0x16) load<jlong>();
     if (code == 0x17) load<jfloat>();
     if (code == 0x18) load<jdouble>();
-    if (code == 0x19) load<shared_ptr<runtime::heap::Object>>();
+    if (code == 0x19) load<runtime::jobject>();
     if (code == 0x1A) loadn<jint>(0);
     if (code == 0x1B) loadn<jint>(1);
     if (code == 0x1C) loadn<jint>(2);
@@ -286,10 +566,10 @@ void Interpreter::execute(uint code) {
     if (code == 0x27) loadn<jdouble>(1);
     if (code == 0x28) loadn<jdouble>(2);
     if (code == 0x29) loadn<jdouble>(3);
-    if (code == 0x2A) loadn<shared_ptr<runtime::heap::Object>>(0);
-    if (code == 0x2B) loadn<shared_ptr<runtime::heap::Object>>(1);
-    if (code == 0x2C) loadn<shared_ptr<runtime::heap::Object>>(2);
-    if (code == 0x2D) loadn<shared_ptr<runtime::heap::Object>>(3);
+    if (code == 0x2A) loadn<runtime::jobject>(0);
+    if (code == 0x2B) loadn<runtime::jobject>(1);
+    if (code == 0x2C) loadn<runtime::jobject>(2);
+    if (code == 0x2D) loadn<runtime::jobject>(3);
     if (code == 0x2E) panic(code); // {}
     if (code == 0x2F) panic(code); // {}
     if (code == 0x30) panic(code); // {}
@@ -302,7 +582,7 @@ void Interpreter::execute(uint code) {
     if (code == 0x37) store<jlong>();
     if (code == 0x38) store<jfloat>();
     if (code == 0x39) store<jdouble>();
-    if (code == 0x3A) store<shared_ptr<runtime::heap::Object>>();
+    if (code == 0x3A) store<runtime::jobject>();
     if (code == 0x3B) storen<jint>(0);
     if (code == 0x3C) storen<jint>(1);
     if (code == 0x3D) storen<jint>(2);
@@ -319,10 +599,10 @@ void Interpreter::execute(uint code) {
     if (code == 0x48) storen<jdouble>(1);
     if (code == 0x49) storen<jdouble>(2);
     if (code == 0x4A) storen<jdouble>(3);
-    if (code == 0x4B) storen<shared_ptr<runtime::heap::Object>>(0);
-    if (code == 0x4C) storen<shared_ptr<runtime::heap::Object>>(1);
-    if (code == 0x4D) storen<shared_ptr<runtime::heap::Object>>(2);
-    if (code == 0x4E) storen<shared_ptr<runtime::heap::Object>>(3);
+    if (code == 0x4B) storen<runtime::jobject>(0);
+    if (code == 0x4C) storen<runtime::jobject>(1);
+    if (code == 0x4D) storen<runtime::jobject>(2);
+    if (code == 0x4E) storen<runtime::jobject>(3);
     if (code == 0x4F) panic(code); // {}
     if (code == 0x50) panic(code); // {}
     if (code == 0x51) panic(code); // {}
@@ -409,8 +689,8 @@ void Interpreter::execute(uint code) {
     if (code == 0xA2) if_cmp<jint>([](jint v1, jint v2) {return v1 >= v2;});
     if (code == 0xA3) if_cmp<jint>([](jint v1, jint v2) {return v1 > v2;});
     if (code == 0xA4) if_cmp<jint>([](jint v1, jint v2) {return v1 <= v2;});
-    if (code == 0xA5) if_cmp<shared_ptr<runtime::heap::Object>>([](shared_ptr<runtime::heap::Object> obj1, shared_ptr<runtime::heap::Object> obj2) {return obj1 == obj2;});
-    if (code == 0xA6) if_cmp<shared_ptr<runtime::heap::Object>>([](shared_ptr<runtime::heap::Object> obj1, shared_ptr<runtime::heap::Object> obj2) {return obj1 != obj2;});
+    if (code == 0xA5) if_cmp<runtime::jobject>([](runtime::jobject obj1, runtime::jobject obj2) {return obj1 == obj2;});
+    if (code == 0xA6) if_cmp<runtime::jobject>([](runtime::jobject obj1, runtime::jobject obj2) {return obj1 != obj2;});
     if (code == 0xA7) _goto();
     if (code == 0xA8) panic(code); // {}
     if (code == 0xA9) panic(code); // {}
@@ -422,22 +702,22 @@ void Interpreter::execute(uint code) {
     if (code == 0xAF) panic(code); // {}
     if (code == 0xB0) panic(code); // {}
     if (code == 0xB1) panic(code); // {}
-    if (code == 0xB2) panic(code); // {}
-    if (code == 0xB3) panic(code); // {}
-    if (code == 0xB4) panic(code); // {}
-    if (code == 0xB5) panic(code); // {}
-    if (code == 0xB6) panic(code); // {}
-    if (code == 0xB7) panic(code); // {}
+    if (code == 0xB2) getstatic();
+    if (code == 0xB3) putstatic();
+    if (code == 0xB4) getfield();
+    if (code == 0xB5) putfield();
+    if (code == 0xB6) invokevirtual();
+    if (code == 0xB7) invokespecial();
     if (code == 0xB8) panic(code); // {}
     if (code == 0xB9) panic(code); // {}
     if (code == 0xBA) panic(code); // {}
-    if (code == 0xBB) panic(code); // {}
+    if (code == 0xBB) _new();
     if (code == 0xBC) panic(code); // {}
     if (code == 0xBD) panic(code); // {}
     if (code == 0xBE) panic(code); // {}
     if (code == 0xBF) panic(code); // {}
-    if (code == 0xC0) panic(code); // {}
-    if (code == 0xC1) panic(code); // {}
+    if (code == 0xC0) checkcast();
+    if (code == 0xC1) instanceof();
     if (code == 0xC2) panic(code); // {}
     if (code == 0xC3) panic(code); // {}
     if (code == 0xC4) panic(code); // {}

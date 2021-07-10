@@ -16,11 +16,15 @@ namespace runtime {
         jstring class_name;
         jstring name;
         jstring descriptor;
-        ConstantPool *constant_pool;
-        Field *field;
-        Clazz *clazz;
+        shared_ptr<ConstantPool> constant_pool; // !ref
+        shared_ptr<Field> field; // !ref
+        shared_ptr<Clazz> clazz; // !ref
+    private:
+        shared_ptr<Field> lookupField(shared_ptr<Clazz>, string, string);
     public:
-        FieldRef(ConstantPool *, const vector<shared_ptr<classfile::cp_info>> &, shared_ptr<classfile::Field>);
+        FieldRef(shared_ptr<ConstantPool>, const vector<shared_ptr<classfile::cp_info>> &, shared_ptr<classfile::Field>);
+        shared_ptr<Clazz> resolvedClass();
+        shared_ptr<Field> resolvedField();
     };
 }
 

@@ -29,10 +29,12 @@ namespace classfile {
         field_info readField();
         method_info readMethod();
         shared_ptr<attribute_info> readAttribute(); // impl in attribute.cpp
+        shared_ptr<annotation::element_value> readElement(); // impl in attribute.cpp
+        annotation::annotation readAnnotation(); // impl in attribute.cpp
+        shared_ptr<annotation::target> readTarget(); // impl in attribute.cpp
     public:
         ClassLoader(ClassPath);
         ClassFile load();
-        optional<method_info> getMain();
     };
 }
 

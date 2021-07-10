@@ -45,7 +45,7 @@ template<> void OperandStack::push<jdouble>(jdouble value) {
     push<jlong>(tmp);
 }
 
-template<> void OperandStack::push<shared_ptr<heap::Object>>(shared_ptr<heap::Object> obj) {
+template<> void OperandStack::push<jobject>(jobject obj) {
     stack.push(Slot());
     stack.top().obj = obj;
 }
@@ -94,8 +94,8 @@ template<> jdouble OperandStack::pop<jdouble>() {
     return *(jdouble *)(&value);
 }
 
-template<> shared_ptr<heap::Object> OperandStack::pop<shared_ptr<heap::Object>>() {
-    shared_ptr<heap::Object> obj = stack.top().obj;
+template<> jobject OperandStack::pop<jobject>() {
+    auto obj = stack.top().obj;
     stack.pop();
     return obj;
 }

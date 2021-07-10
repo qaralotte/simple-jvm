@@ -13,10 +13,11 @@ namespace runtime {
     struct ClassRef : Constant {
     public:
         jstring class_name;
-        ConstantPool *constant_pool;
-        Clazz *clazz;
+        shared_ptr<ConstantPool> constant_pool; // !ref
+        shared_ptr<Clazz> clazz; // !ref
     public:
-        ClassRef(ConstantPool *, const vector<shared_ptr<classfile::cp_info>> &, shared_ptr<classfile::Class>);
+        ClassRef(shared_ptr<ConstantPool>, const vector<shared_ptr<classfile::cp_info>> &, shared_ptr<classfile::Class>);
+        shared_ptr<Clazz> resolvedClass();
     };
 }
 

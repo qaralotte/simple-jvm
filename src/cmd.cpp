@@ -25,6 +25,6 @@ void Cmd::config(vector<string> cmd_vec) {
     }
 
     // classpath:
-    classpath = get("classpath");
-    Xss = stoi(get("Xss")); // todo 自动转化
+    classpath = get("-classpath");
+    Xss = stoi(get("-Xss")); // todo 自动转化
 }

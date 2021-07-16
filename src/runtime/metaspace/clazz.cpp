@@ -85,6 +85,8 @@ bool Clazz::isSubInterfaceOf(Clazz d) {
 }
 
 bool Clazz::operator==(const Clazz &other) const {
+    if (this == nullptr && &other == nullptr) return true;
+    if (this == nullptr || &other == nullptr) return false;
     if (access_flags != other.access_flags) return false;
     if (this_name != other.this_name) return false;
     if (super_name != other.super_name) return false;
@@ -96,7 +98,7 @@ bool Clazz::operator==(const Clazz &other) const {
     if (interfaces != other.interfaces) return false;
     if (instance_slot_count != other.instance_slot_count) return false;
     if (static_slot_count != other.static_slot_count) return false;
-    if (static_vars.getSlots() != other.static_vars.getSlots()) return false;
+    // if (static_vars.getSlots() != other.static_vars.getSlots()) return false;
     return true;
 }
 

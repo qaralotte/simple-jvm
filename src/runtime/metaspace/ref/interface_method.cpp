@@ -13,7 +13,6 @@ InterfaceMethodRef::InterfaceMethodRef(shared_ptr<ConstantPool> rconstant_pool, 
     name = classfile::ConstantUtils::getConstant<classfile::Utf8>(cconstant_pool, name_and_type_const -> name_index) -> value;
     descriptor = classfile::ConstantUtils::getConstant<classfile::Utf8>(cconstant_pool, name_and_type_const -> descriptor_index) -> value;
     constant_pool = rconstant_pool;
-    clazz = rconstant_pool -> clazz;
 }
 
 shared_ptr<Clazz> InterfaceMethodRef::resolvedClass() {

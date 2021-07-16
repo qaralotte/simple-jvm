@@ -1,3 +1,5 @@
+#include <cmath>
+
 #include "include/opcode/interpreter.h"
 #include "include/log.h"
 #include "include/accessflags.h"
@@ -89,13 +91,12 @@ void Interpreter::pop(uint count) {
 }
 
 void Interpreter::dup(uint count) {
-    stack<runtime::Slot> slots;
+    vector<runtime::Slot> slots;
     for (int i = 0; i < count; ++i) {
-        slots.push(frame.stack.pop<runtime::Slot>());
+        slots.push_back(frame.stack.pop<runtime::Slot>());
     }
     for (int i = 0; i < count * 2; ++i) {
-        frame.stack.push<runtime::Slot>(slots.top());
-        slots.pop();
+        frame.stack.push<runtime::Slot>(slots[i % count]);
     }
 }
 
@@ -322,7 +323,7 @@ void Interpreter::putstatic() {
     }
     auto descriptor = field -> descriptor;
     auto slot_id = field -> slot_id;
-    auto slots = clazz -> static_vars;
+    auto &slots = clazz -> static_vars;
     if (descriptor == DESC_BOOLEAN ||
         descriptor == DESC_BYTE ||
         descriptor == DESC_CHAR ||
@@ -349,7 +350,7 @@ void Interpreter::getfield() {
     auto field_ref = static_pointer_cast<runtime::FieldRef>(constant_pool[index]);
     auto field = field_ref -> resolvedField();
     auto clazz = field -> clazz;
-    if (!field -> haveAccess(ACCESS_STATIC)) {
+    if (field -> haveAccess(ACCESS_STATIC)) {
         ERROR("java.lang.IncompatibleClassChangeError: %s", clazz -> this_name.c_str());
         exit(0);
     }
@@ -388,7 +389,7 @@ void Interpreter::putfield() {
     auto field_ref = static_pointer_cast<runtime::FieldRef>(constant_pool[index]);
     auto field = field_ref -> resolvedField();
     auto clazz = field -> clazz;
-    if (!field -> haveAccess(ACCESS_STATIC)) {
+    if (field -> haveAccess(ACCESS_STATIC)) {
         ERROR("java.lang.IncompatibleClassChangeError: %s", clazz -> this_name.c_str());
         exit(0);
     }
@@ -493,7 +494,7 @@ void Interpreter::instanceof() {
     auto constant_pool = frame.method -> clazz -> constant_pool -> constants;
     auto class_ref = static_pointer_cast<runtime::ClassRef>(constant_pool[index]);
     auto clazz = class_ref -> resolvedClass();
-    if (ref ->isInstanceOf(*clazz)) {
+    if (ref -> isInstanceOf(*clazz)) {
         frame.stack.push<jint>(1);
     } else {
         frame.stack.push<jint>(0);
@@ -677,20 +678,20 @@ void Interpreter::execute(uint code) {
     if (code == 0x96) cmp<jfloat>(1);
     if (code == 0x97) cmp<jdouble>(-1);
     if (code == 0x98) cmp<jdouble>(1);
-    if (code == 0x99) _if<jint>([](jint v) {return v == 0;});
-    if (code == 0x9A) _if<jint>([](jint v) {return v != 0;});
-    if (code == 0x9B) _if<jint>([](jint v) {return v < 0;});
-    if (code == 0x9C) _if<jint>([](jint v) {return v >= 0;});
-    if (code == 0x9D) _if<jint>([](jint v) {return v > 0;});
-    if (code == 0x9E) _if<jint>([](jint v) {return v <= 0;});
-    if (code == 0x9F) if_cmp<jint>([](jint v1, jint v2) {return v1 == v2;});
-    if (code == 0xA0) if_cmp<jint>([](jint v1, jint v2) {return v1 != v2;});
-    if (code == 0xA1) if_cmp<jint>([](jint v1, jint v2) {return v1 < v2;});
-    if (code == 0xA2) if_cmp<jint>([](jint v1, jint v2) {return v1 >= v2;});
-    if (code == 0xA3) if_cmp<jint>([](jint v1, jint v2) {return v1 > v2;});
-    if (code == 0xA4) if_cmp<jint>([](jint v1, jint v2) {return v1 <= v2;});
-    if (code == 0xA5) if_cmp<runtime::jobject>([](runtime::jobject obj1, runtime::jobject obj2) {return obj1 == obj2;});
-    if (code == 0xA6) if_cmp<runtime::jobject>([](runtime::jobject obj1, runtime::jobject obj2) {return obj1 != obj2;});
+    if (code == 0x99) _if<jint>([](jint v) -> bool {return v == 0;});
+    if (code == 0x9A) _if<jint>([](jint v) -> bool {return v != 0;});
+    if (code == 0x9B) _if<jint>([](jint v) -> bool {return v < 0;});
+    if (code == 0x9C) _if<jint>([](jint v) -> bool {return v >= 0;});
+    if (code == 0x9D) _if<jint>([](jint v) -> bool {return v > 0;});
+    if (code == 0x9E) _if<jint>([](jint v) -> bool {return v <= 0;});
+    if (code == 0x9F) if_cmp<jint>([](jint v1, jint v2) -> bool {return v1 == v2;});
+    if (code == 0xA0) if_cmp<jint>([](jint v1, jint v2) -> bool {return v1 != v2;});
+    if (code == 0xA1) if_cmp<jint>([](jint v1, jint v2) -> bool {return v1 < v2;});
+    if (code == 0xA2) if_cmp<jint>([](jint v1, jint v2) -> bool {return v1 >= v2;});
+    if (code == 0xA3) if_cmp<jint>([](jint v1, jint v2) -> bool {return v1 > v2;});
+    if (code == 0xA4) if_cmp<jint>([](jint v1, jint v2) -> bool {return v1 <= v2;});
+    if (code == 0xA5) if_cmp<runtime::jobject>([](runtime::jobject obj1, runtime::jobject obj2) -> bool {return obj1 == obj2;});
+    if (code == 0xA6) if_cmp<runtime::jobject>([](runtime::jobject obj1, runtime::jobject obj2) -> bool {return obj1 != obj2;});
     if (code == 0xA7) _goto();
     if (code == 0xA8) panic(code); // {}
     if (code == 0xA9) panic(code); // {}

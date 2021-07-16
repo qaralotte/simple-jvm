@@ -8,6 +8,8 @@ bool Object::isInstanceOf(Clazz d) {
 }
 
 bool Object::operator==(const Object &other) const {
+    if (this == nullptr && &other == nullptr) return true;
+    if (this == nullptr || &other == nullptr) return false;
     if (clazz != other.clazz) return false;
     if (field.getSlots() != other.field.getSlots()) return false;
     return true;

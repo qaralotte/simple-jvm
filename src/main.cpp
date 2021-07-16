@@ -1,4 +1,5 @@
 #include <vector>
+#include <ctime>
 
 #include "include/cmd.h"
 #include "include/log.h"
@@ -35,7 +36,7 @@ void startJVM() {
     if (main_method != nullptr) {
         interpret(main_method);
     } else {
-        ERROR("Main 方法在%s.class里未找到", clazz -> this_name.c_str());
+        ERROR("在%s 未找到main方法", clazz -> this_name.c_str());
         exit(0);
     }
 }

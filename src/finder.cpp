@@ -6,7 +6,7 @@
 #include "include/config.h"
 #include "include/cmd.h"
 
-#include "lib/zip_file.hpp"
+#include "include/minizip-ng/unzip.h"
 
 using namespace classfinder;
 
@@ -44,7 +44,7 @@ ClassPath ClassFinder::findInDir(const string &oripath, bool traverse_next) {
             } else {
                 string pkgpath = mergePath(oripath, file.path().string());
                 if (pkgpath == filename) {
-                    return ClassPath(classpath::DIR, file.path().string(), filename);
+                    return ClassPath(classpath::DIR, file.path().string(), nullptr, classname, filename);
                 }
             }
         }
@@ -54,11 +54,11 @@ ClassPath ClassFinder::findInDir(const string &oripath, bool traverse_next) {
 
 // 遍历jar/zip包
 ClassPath ClassFinder::findInJar(const string &jarpath) {
-    vector<uchar> data;
-    miniz_cpp::zip_file zfile(jarpath);
-    if (zfile.has_file(filename)) {
-        return ClassPath(classpath::JAR, jarpath, filename);
+    auto unzfile = unzOpen(jarpath.c_str());
+    if (unzLocateFile(unzfile, filename.c_str(), NULL) == MZ_OK) {
+        return ClassPath(classpath::JAR, jarpath, unzfile, classname, filename);
     }
+    unzClose(unzfile);
     return ClassPath(classpath::NOT_FOUND);
 }
 
@@ -87,7 +87,7 @@ ClassPath ClassFinder::findClass() {
             if (file.status().type() != filesystem::file_type::directory) {
                 if (getSuffix(file.path().string()) == "class") {
                     if (mergePath(dirpath, file.path().string()) == filename) {
-                        return ClassPath(classpath::DIR, file.path().string(), filename);
+                        return ClassPath(classpath::DIR, file.path().string(), nullptr, classname, filename);
                     }
                 } else if (getSuffix(file.path().string()) == "jar" || getSuffix(file.path().string()) == "zip") {
                     return findInJar(file.path().string());

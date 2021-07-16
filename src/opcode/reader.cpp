@@ -7,7 +7,7 @@ uint Reader::jumpPC(int offset) {
     return pc;
 }
 
-uint Reader::getPC() {
+uint Reader::getPC() const {
     return pc;
 }
 

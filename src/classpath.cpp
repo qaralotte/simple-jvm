@@ -14,7 +14,7 @@ vector<uchar> ClassPath::readInDir() {
     vector<uchar> bytes;
     ifstream fs(path, ios::binary);
     if (fs.fail()) {
-        ERROR("打开class文件[%s.class]出错", path.c_str());
+        ERROR("打开class文件: %s出错", path.c_str());
         fs.close();
         exit(0);
     }

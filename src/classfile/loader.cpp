@@ -76,8 +76,6 @@ ClassLoader::ClassLoader(ClassPath path) : class_name(path.class_name) {
 
 /* 加载class文件到缓冲区 */
 ClassFile ClassLoader::load() {
-    DEBUG("开始读取 %s", class_name.c_str());
-
     /* magic == 0xCAFEBABE ? */
     if (readU4() != 0xCAFEBABE) {
         ERROR("%s 不是一个有效的class文件", class_name.c_str());
@@ -136,8 +134,6 @@ ClassFile ClassLoader::load() {
     for (auto &attribute : clazz.attributes) {
         attribute = readAttribute();
     }
-
-    DEBUG("%s 成功加载到 ClassFile", class_name.c_str());
 
     return clazz;
 }

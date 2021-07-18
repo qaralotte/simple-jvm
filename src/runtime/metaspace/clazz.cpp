@@ -31,17 +31,56 @@ string Clazz::getPackageName() {
     return package_name;
 }
 
-shared_ptr<Method> Clazz::getStaticMethod(string name, string descriptor) {
+shared_ptr<Method> Clazz::getMainMethod() {
+    return findMethodInClass("main", "([Ljava/lang/String;)V", {ACCESS_STATIC});
+}
+
+shared_ptr<Method> Clazz::findMethod(string name, string descriptor, vector<uint16> accesses) {
+    auto method = findMethodInClass(name, descriptor, accesses);
+    if (findMethodInClass(name, descriptor, accesses) == nullptr) {
+        method = findMethodInInterface(name, descriptor, accesses);
+    }
+    return method;
+}
+
+shared_ptr<Method> Clazz::findMethodInClass(string name, string descriptor, vector<uint16> accesses) {
     for (auto method : methods) {
-        if (method -> haveAccess(ACCESS_STATIC)) {
+        bool have_access = true;
+        if (accesses.size() > 0) {
+            for (auto access : accesses) {
+                if (!method -> haveAccess(access)) {
+                    have_access = false;
+                    break;
+                }
+            }
+        }
+        if (have_access) {
             if (method -> name == name && method -> descriptor == descriptor) return method;
         }
     }
     return nullptr;
 }
 
-shared_ptr<Method> Clazz::getMainMethod() {
-    return getStaticMethod("main", "([Ljava/lang/String;)V");
+shared_ptr<Method> Clazz::findMethodInInterface(string name, string descriptor, vector<uint16> accesses) {
+    for (auto interface : interfaces) {
+        for (auto method : interface -> methods) {
+            bool have_access = true;
+            if (accesses.size() > 0) {
+                for (auto access : accesses) {
+                    if (!method -> haveAccess(access)) {
+                        have_access = false;
+                        break;
+                    }
+                }
+            }
+            if (have_access) {
+                if (method -> name == name && method -> descriptor == descriptor) return method;
+                method = interface ->findMethodInInterface(name, descriptor, accesses);
+                if (method != nullptr) return method;
+            }
+        }
+    }
+    return nullptr;
 }
 
 bool Clazz::isAccessTo(Clazz d) {

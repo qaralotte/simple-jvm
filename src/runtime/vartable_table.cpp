@@ -41,6 +41,10 @@ template<> jobject VariableTable::get<jobject>(uint index) {
     return slots[index].obj;
 }
 
+template<> Slot VariableTable::get<Slot>(uint index) {
+    return slots[index];
+}
+
 /* setter */
 template<typename T> void VariableTable::set(uint, T) {
     ERROR("impossible reach");
@@ -67,4 +71,8 @@ template<> void VariableTable::set<jdouble>(uint index, jdouble value) {
 
 template<> void VariableTable::set<jobject>(uint index, jobject obj) {
     slots[index].obj = obj;
+}
+
+template<> void VariableTable::set<Slot>(uint index, Slot slot) {
+    slots[index] = slot;
 }

@@ -22,6 +22,7 @@ namespace runtime {
     public:
         InterfaceMethodRef(shared_ptr<ConstantPool>, const vector<shared_ptr<classfile::cp_info>> &, shared_ptr<classfile::InterfaceMethodref>);
         shared_ptr<Clazz> resolvedClass();
+        shared_ptr<Method> resolvedInterfaceMethod();
     };
 }
 

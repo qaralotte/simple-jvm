@@ -263,10 +263,22 @@ template<typename T> void Interpreter::if_cmp(function<bool(T, T)> expr) {
     }
 }
 
-/* 跳转 */
+/* 控制 */
 void Interpreter::_goto() {
     jshort offset = reader.readShort();
     reader.jumpPC(offset);
+}
+
+template<typename T> void Interpreter::_return() {
+    auto thread = frame.thread;
+    auto current_frame = thread -> pop();
+    auto &invoke_frame = thread -> top();
+    auto val = current_frame.stack.pop<T>();
+    invoke_frame.stack.push<T>(val);
+}
+
+template<> void Interpreter::_return<jvoid>() {
+    frame.thread -> pop();
 }
 
 /* 引用 */
@@ -444,31 +456,149 @@ void Interpreter::putfield() {
 
 void Interpreter::invokevirtual() {
     uint16 index = reader.readShort();
+    auto current_clazz = frame.method -> clazz;
     auto constant_pool = frame.method -> clazz -> constant_pool -> constants;
     auto method_ref = static_pointer_cast<runtime::MethodRef>(constant_pool[index]);
-    if (method_ref -> name == "println") {
-        if (method_ref -> descriptor == "(Z)V" ||
-            method_ref -> descriptor == "(C)V" ||
-            method_ref -> descriptor == "(B)V" ||
-            method_ref -> descriptor == "(S)V" ||
-            method_ref -> descriptor == "(I)V") {
-            printf("%d\n", frame.stack.pop<jint>());
-        } else if (method_ref -> descriptor == "(J)V") {
-            printf("%lld\n", frame.stack.pop<jlong>());
-        } else if (method_ref -> descriptor == "(F)V") {
-            printf("%f\n", frame.stack.pop<jfloat>());
-        } else if (method_ref -> descriptor == "(D)V") {
-            printf("%lf\n", frame.stack.pop<jdouble>());
-        } else {
-            ERROR("println: %s", method_ref -> descriptor.c_str());
-            exit(0);
-        }
-        frame.stack.pop<runtime::jobject>();
+    auto method = method_ref -> resolvedMethod();
+    if (method -> haveAccess(ACCESS_STATIC)) {
+        ERROR("java.lang.IncompatibleClassChangeError");
+        exit(0);
     }
+
+    auto ref = frame.stack.getRegFromTop(method -> arg_slot_count - 1);
+    if (ref == nullptr) {
+        // ⬇ todo println
+        if (method_ref -> name == "println") {
+            if (method_ref -> descriptor == "(Z)V" ||
+                method_ref -> descriptor == "(C)V" ||
+                method_ref -> descriptor == "(B)V" ||
+                method_ref -> descriptor == "(S)V" ||
+                method_ref -> descriptor == "(I)V") {
+                printf("%d\n", frame.stack.pop<jint>());
+            } else if (method_ref -> descriptor == "(J)V") {
+                printf("%lld\n", frame.stack.pop<jlong>());
+            } else if (method_ref -> descriptor == "(F)V") {
+                printf("%f\n", frame.stack.pop<jfloat>());
+            } else if (method_ref -> descriptor == "(D)V") {
+                printf("%lf\n", frame.stack.pop<jdouble>());
+            } else {
+                ERROR("println: %s", method_ref -> descriptor.c_str());
+                exit(0);
+            }
+            frame.stack.pop<runtime::jobject>();
+        }
+        // ⬆
+
+        ERROR("java.lang.NullPointerException");
+        exit(0);
+    }
+
+    if (method -> haveAccess(ACCESS_PROTECTED) &&
+        *method -> clazz -> super_class == *current_clazz &&
+        method -> clazz -> getPackageName() == current_clazz -> getPackageName() &&
+        ref -> clazz != *current_clazz &&
+        !ref -> clazz .isSubClassOf(*current_clazz)) {
+        ERROR("java.lang.IllegalAccessError");
+        exit(0);
+    }
+
+    auto method_invoked = ref -> clazz.findMethod(method_ref -> name, method_ref -> descriptor);
+    if (method_invoked == nullptr || method_invoked -> haveAccess(ACCESS_ABSTRACT)) {
+        ERROR("java.lang.AbstractMethodError");
+        exit(0);
+    }
+    invokemethod(method_invoked);
 }
 
 void Interpreter::invokespecial() {
     uint16 index = reader.readShort();
+    auto current_clazz = frame.method -> clazz;
+    auto constant_pool = frame.method -> clazz -> constant_pool -> constants;
+    auto method_ref = static_pointer_cast<runtime::MethodRef>(constant_pool[index]);
+    auto method = method_ref -> resolvedMethod();
+    auto clazz = method_ref -> resolvedClass();
+    if (method -> name == "<init>" && *method -> clazz != *clazz) {
+        ERROR("java.lang.NoSuchMethodError");
+        exit(0);
+    }
+    if (method -> haveAccess(ACCESS_STATIC)) {
+        ERROR("java.lang.IncompatibleClassChangeError");
+        exit(0);
+    }
+
+    auto ref = frame.stack.getRegFromTop(method -> arg_slot_count - 1);
+    if (ref == nullptr) {
+        ERROR("java.lang.NullPointerException");
+        exit(0);
+    }
+
+    if (method -> haveAccess(ACCESS_PROTECTED) &&
+        *method -> clazz -> super_class == *current_clazz &&
+            method -> clazz -> getPackageName() == current_clazz -> getPackageName() &&
+        ref -> clazz != *current_clazz &&
+        !ref -> clazz.isSubClassOf(*current_clazz)) {
+        ERROR("java.lang.IllegalAccessError");
+        exit(0);
+    }
+
+    auto method_invoked = method;
+    if (current_clazz -> haveAccess(ACCESS_SUPER) &&
+        *clazz -> super_class == *current_clazz -> super_class &&
+        method -> name != "<init>") {
+        method_invoked = current_clazz -> super_class -> findMethodInClass(method_ref -> name, method_ref -> descriptor);
+    }
+
+    if (method_invoked == nullptr || method_invoked -> haveAccess(ACCESS_ABSTRACT)) {
+        ERROR("java.lang.AbstractMethodError");
+        exit(0);
+    }
+    invokemethod(method_invoked);
+}
+
+void Interpreter::invokestatic() {
+    uint16 index = reader.readShort();
+    auto constant_pool = frame.method -> clazz -> constant_pool -> constants;
+    auto method_ref = static_pointer_cast<runtime::MethodRef>(constant_pool[index]);
+    auto method = method_ref -> resolvedMethod();
+    if (!method -> haveAccess(ACCESS_STATIC)) {
+        ERROR("java.lang.IncompatibleClassChangeError");
+        exit(0);
+    }
+    invokemethod(method);
+}
+
+void Interpreter::invokeinterface() {
+    uint16 index = reader.readShort();
+    reader.readShort(); // count
+    reader.readShort(); // 0
+    auto constant_pool = frame.method -> clazz -> constant_pool -> constants;
+    auto method_ref = static_pointer_cast<runtime::MethodRef>(constant_pool[index]);
+    auto method = method_ref -> resolvedMethod();
+    if (method -> haveAccess(ACCESS_STATIC) || method -> haveAccess(ACCESS_PRIVATE)) {
+        ERROR("java.lang.IncompatibleClassChangeError");
+        exit(0);
+    }
+
+    auto ref = frame.stack.getRegFromTop(method -> arg_slot_count - 1);
+    if (ref == nullptr) {
+        ERROR("java.lang.NullPointerException");
+        exit(0);
+    }
+    if (ref -> clazz.isImplementOf(*method_ref -> resolvedClass())) {
+        ERROR("java.lang.IncompatibleClassChangeError");
+        exit(0);
+    }
+
+    auto method_invoked = ref -> clazz.findMethod(method_ref -> name, method_ref -> descriptor);
+    if (method_invoked == nullptr || method_invoked -> haveAccess(ACCESS_ABSTRACT)) {
+        ERROR("java.lang.AbstractMethodError");
+        exit(0);
+    }
+    if (!method_invoked -> haveAccess(ACCESS_PUBLIC)) {
+        ERROR("java.lang.IllegalAccessError");
+        exit(0);
+    }
+    invokemethod(method_invoked);
 }
 
 void Interpreter::_new() {
@@ -516,6 +646,23 @@ void Interpreter::checkcast() {
         ERROR("java.lang.ClassCastException: %s", clazz -> this_name.c_str());
         exit(0);
     }
+}
+
+
+// 非虚拟机规范内的函数
+void Interpreter::invokemethod(shared_ptr<runtime::Method> method) {
+    auto thread = frame.thread;
+    auto newframe = runtime::JVMFrame(thread, method);
+
+    auto arg_slot_count = method -> arg_slot_count;
+    if (arg_slot_count > 0) {
+        for (int i = arg_slot_count - 1; i >= 0; --i) {
+            auto slot = frame.stack.pop<runtime::Slot>();
+            newframe.locals.set<runtime::Slot>(i, slot);
+        }
+    }
+
+    thread -> push(newframe);
 }
 
 // 暂时
@@ -697,20 +844,20 @@ void Interpreter::execute(uint code) {
     if (code == 0xA9) panic(code); // {}
     if (code == 0xAA) panic(code); // {}
     if (code == 0xAB) panic(code); // {}
-    if (code == 0xAC) panic(code); // {}
-    if (code == 0xAD) panic(code); // {}
-    if (code == 0xAE) panic(code); // {}
-    if (code == 0xAF) panic(code); // {}
-    if (code == 0xB0) panic(code); // {}
-    if (code == 0xB1) panic(code); // {}
+    if (code == 0xAC) _return<jint>();
+    if (code == 0xAD) _return<jlong>();
+    if (code == 0xAE) _return<jfloat>();
+    if (code == 0xAF) _return<jdouble>();
+    if (code == 0xB0) _return<runtime::jobject>();
+    if (code == 0xB1) _return<jvoid>();
     if (code == 0xB2) getstatic();
     if (code == 0xB3) putstatic();
     if (code == 0xB4) getfield();
     if (code == 0xB5) putfield();
     if (code == 0xB6) invokevirtual();
     if (code == 0xB7) invokespecial();
-    if (code == 0xB8) panic(code); // {}
-    if (code == 0xB9) panic(code); // {}
+    if (code == 0xB8) invokestatic();
+    if (code == 0xB9) invokeinterface();
     if (code == 0xBA) panic(code); // {}
     if (code == 0xBB) _new();
     if (code == 0xBC) panic(code); // {}

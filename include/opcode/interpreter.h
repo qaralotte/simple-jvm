@@ -59,19 +59,23 @@ namespace opcode {
 
         /* 控制 */
         void _goto();
+        template<typename T> void _return();
 
         /* 引用 */
         void getstatic();
         void putstatic();
         void getfield();
         void putfield();
-
         void invokevirtual();
         void invokespecial();
-
+        void invokestatic();
+        void invokeinterface();
         void _new();
         void checkcast();
         void instanceof();
+    private:
+        /* 非虚拟机规范内的函数 */
+        void invokemethod(shared_ptr<runtime::Method>);
     public:
         Interpreter(runtime::JVMFrame &_frame, Reader &_reader) : frame(_frame), reader(_reader) {};
         void execute(uint);

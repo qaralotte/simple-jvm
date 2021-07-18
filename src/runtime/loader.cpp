@@ -12,7 +12,7 @@ map<string, shared_ptr<Clazz>> ClassLoader::class_map;
 
 /* 加载非数组类的Class */
 void ClassLoader::loadNonArrayClass() {
-    DEBUG("开始加载 %s", class_name.c_str());
+    DEBUG("加载 %s", class_name.c_str());
 
     /* 搜索 class */
     classfinder::ClassFinder finder(class_name);
@@ -23,7 +23,7 @@ void ClassLoader::loadNonArrayClass() {
     auto clazz = make_shared<runtime::Clazz>() -> init(classfile);
 
     // 如果是Object，则一直加载他的超类
-    if (clazz -> this_name == "java/lang/Object") {
+    if (clazz -> this_name != "java/lang/Object") {
         ClassLoader loader(clazz -> super_name);
         clazz -> super_class = loader.loadClass();
     }
@@ -39,8 +39,6 @@ void ClassLoader::loadNonArrayClass() {
     /* 链接 class */
     // todo verify
     prepare();
-
-    DEBUG("%s 加载完成", class_name.c_str());
 }
 
 void ClassLoader::prepare() {

@@ -8,6 +8,24 @@
 #include "include/classfile/method.h"
 
 namespace runtime {
+    struct MethodDescriptor {
+    private:
+        string descriptor;
+        uint offset;
+    public:
+        vector<string> parameter_types;
+        string return_type;
+    private:
+        char nextChar();
+        void parseParam();
+        void parseReturn();
+        string parseType(char);
+        string parseObject();
+    public:
+        MethodDescriptor(string _descriptor) : descriptor(_descriptor), offset(0) {};
+        void parse();
+    };
+
     class Clazz;
     class Method : public enable_shared_from_this<Method> {
     public:
@@ -17,9 +35,11 @@ namespace runtime {
         uint16 max_stack;
         uint16 max_locals;
         vector<uint8> code;
-        shared_ptr<Clazz>clazz = nullptr;
+        uint32 arg_slot_count;
+        shared_ptr<Clazz> clazz = nullptr;
     private:
         shared_ptr<Method> init(shared_ptr<Clazz>, classfile::method_info);
+        uint32 getArgSlotCount();
     public:
         static vector<shared_ptr<Method>> arrayOf(shared_ptr<Clazz>, vector<classfile::method_info>);
     public:

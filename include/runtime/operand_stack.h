@@ -2,7 +2,7 @@
 #define JVM_RUNTIME_OPERAND_STACK_H
 
 #include <memory>
-#include <stack>
+#include <vector>
 
 #include "include/std.h"
 
@@ -13,11 +13,13 @@ namespace runtime {
     class OperandStack {
     private:
         uint capacity;
-        stack<Slot> stack;
+        vector<Slot> stack;
+        uint size;
     public:
         OperandStack() = default;
-        explicit OperandStack(uint _capacity) : capacity(_capacity) {};
+        explicit OperandStack(uint);
         uint getCapacity();
+        runtime::jobject getRegFromTop(uint);
     public:
         template<typename T> void push(T);
         template<typename T> T pop();

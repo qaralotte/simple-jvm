@@ -16,35 +16,29 @@ namespace runtime {
     public:
         VariableTable locals;
         OperandStack stack;
-        // todo 动态连接 Dynamic Linking
-        // todo 返回地址 Return Address
-        shared_ptr<Method> method; // !ref
-        shared_ptr<JVMThread> thread; // !ref
+        uint pc;
+        shared_ptr<Method> method; // !!ref
+        shared_ptr<JVMThread> thread; // !!ref
     public:
         JVMFrame(shared_ptr<JVMThread>, shared_ptr<Method>);
+        void setPC(uint);
+        uint getPC();
     };
 
-    class JVMStack {
+    class JVMThread {
     private:
         uint capaciry;
         uint size;
         stack<JVMFrame> frames;
     public:
-        JVMStack(uint = 0);
-        void push(JVMFrame);
-        JVMFrame pop();
-    };
-
-    class JVMThread {
-    private:
-        JVMStack stack;
-        uint pc;
-    public:
         JVMThread();
         shared_ptr<JVMThread> init();
         void setPC(uint);
         uint getPC();
-        JVMStack &getStack();
+        void push(JVMFrame);
+        JVMFrame pop();
+        JVMFrame &top();
+        bool isEmpty() const;
     };
 }
 

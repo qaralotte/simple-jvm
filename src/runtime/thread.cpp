@@ -13,15 +13,37 @@ JVMFrame::JVMFrame(shared_ptr<JVMThread> _thread, shared_ptr<Method> _method) {
     stack = OperandStack(_method -> max_stack);
     method = _method;
     thread = _thread;
+    pc = 0;
 }
 
-/* 栈 */
-JVMStack::JVMStack(uint _capacity) {
+void JVMFrame::setPC(uint _pc) {
+    pc = _pc;
+}
+
+uint JVMFrame::getPC() {
+    return pc;
+}
+
+/* 线程 */
+JVMThread::JVMThread() {
+    auto _capacity = Cmd::Xss;
     capaciry = (_capacity == 0 ? UINT32_MAX : _capacity);
     size = 0;
 }
 
-void JVMStack::push(JVMFrame frame) {
+shared_ptr<JVMThread> JVMThread::init() {
+    return make_shared<JVMThread>();
+}
+
+void JVMThread::setPC(uint _pc) {
+    top().pc = _pc;
+}
+
+uint JVMThread::getPC() {
+    return top().pc;
+}
+
+void JVMThread::push(JVMFrame frame) {
     if (size > capaciry) {
         ERROR("StackOverflowError: size=%u, capacity=%u", size, capaciry);
         exit(0);
@@ -30,7 +52,7 @@ void JVMStack::push(JVMFrame frame) {
     size += 1;
 }
 
-JVMFrame JVMStack::pop() {
+JVMFrame JVMThread::pop() {
     if (size <= 0) {
         ERROR("OutOfMemoryError: size < 0");
         exit(0);
@@ -41,24 +63,10 @@ JVMFrame JVMStack::pop() {
     return frame;
 }
 
-/* 线程 */
-JVMThread::JVMThread() {
-    pc = 0;
-    stack = JVMStack(Cmd::Xss);
+JVMFrame &JVMThread::top() {
+    return frames.top();
 }
 
-shared_ptr<JVMThread> JVMThread::init() {
-    return make_shared<JVMThread>();
-}
-
-void JVMThread::setPC(uint _pc) {
-    pc = _pc;
-}
-
-uint JVMThread::getPC() {
-    return pc;
-}
-
-JVMStack &JVMThread::getStack() {
-    return stack;
+bool JVMThread::isEmpty() const {
+    return frames.empty();
 }

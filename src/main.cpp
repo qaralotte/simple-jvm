@@ -7,25 +7,28 @@
 #include "include/opcode/interpreter.h"
 #include "include/runtime/thread.h"
 #include "include/runtime/loader.h"
-#include "include/runtime/metaspace/field.h"
 #include "include/runtime/metaspace/method.h"
 
-[[noreturn]] __unused void loop(shared_ptr<runtime::JVMThread> thread, vector<classfile::u1> code) {
-    auto frame = thread -> getStack().pop();
-    auto reader = opcode::Reader(thread, code);
-    auto interpreter = opcode::Interpreter(frame, reader);
+__unused void loop(shared_ptr<runtime::JVMThread> thread) {
+
     while (true) {
+        auto &frame = thread -> top();
+        auto reader = opcode::Reader(thread, frame.method -> code, frame.getPC());
+        auto interpreter = opcode::Interpreter(frame, reader);
+
         auto opcode = reader.readByte();
         interpreter.execute(opcode);
-        thread -> setPC(reader.getPC());
+        frame.setPC(reader.getPC());
+
+        if (thread -> isEmpty()) break;
     }
 }
 
-__unused void interpret(shared_ptr<runtime::Method> main_method) {
+__unused void interpret(shared_ptr<runtime::Method> method) {
     auto thread = runtime::JVMThread().init();
-    runtime::JVMFrame frame(thread, main_method);
-    thread -> getStack().push(frame);
-    loop(thread, main_method -> code);
+    runtime::JVMFrame frame(thread, method);
+    thread -> push(frame);
+    loop(thread);
 }
 
 /* 启动虚拟机 */

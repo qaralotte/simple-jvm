@@ -28,3 +28,24 @@ shared_ptr<Clazz> InterfaceMethodRef::resolvedClass() {
     }
     return clazz;
 }
+
+shared_ptr<Method> InterfaceMethodRef::resolvedInterfaceMethod() {
+    if (method == nullptr) {
+        auto d = constant_pool -> clazz;
+        auto c = resolvedClass();
+        if (!c -> haveAccess(ACCESS_INTERFACE)) {
+            ERROR("java.lang.IncompatibleClassChangeError");
+            exit(0);
+        }
+        method = c -> findMethod(name, descriptor);
+        if (method == nullptr) {
+            ERROR("java.lang.NoSuchMethodError");
+            exit(0);
+        }
+        if (!method -> isAccessTo(*d)) {
+            ERROR("java.lang.IllegalAccessError");
+            exit(0);
+        }
+    }
+    return method;
+}

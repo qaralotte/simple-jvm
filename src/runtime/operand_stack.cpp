@@ -3,8 +3,16 @@
 
 using namespace runtime;
 
+OperandStack::OperandStack(uint _capacity) : capacity(_capacity), size(0) {
+    stack.resize(_capacity);
+}
+
 uint OperandStack::getCapacity() {
     return capacity;
+}
+
+runtime::jobject OperandStack::getRegFromTop(uint n) {
+    return stack[size - 1 - n].obj;
 }
 
 /* push */
@@ -14,8 +22,10 @@ template<typename T> void OperandStack::push(T) {
 }
 
 template<> void OperandStack::push<jint>(jint value) {
-    stack.push(Slot());
-    stack.top().value = value;
+    Slot slot;
+    slot.value = value;
+    stack[size] = slot;
+    size += 1;
 }
 
 template<> void OperandStack::push<jbyte>(jbyte value) {
@@ -35,7 +45,6 @@ template<> void OperandStack::push<jlong>(jlong value) {
     push<jint>((jint) (value >> 32));
 }
 
-
 template<> void OperandStack::push<jfloat>(jfloat value) {
     push<jint>(*(jint *)(&value));
 }
@@ -46,12 +55,15 @@ template<> void OperandStack::push<jdouble>(jdouble value) {
 }
 
 template<> void OperandStack::push<jobject>(jobject obj) {
-    stack.push(Slot());
-    stack.top().obj = obj;
+    Slot slot;
+    slot.obj = obj;
+    stack[size] = slot;
+    size += 1;
 }
 
 template<> void OperandStack::push<Slot>(Slot slot) {
-    stack.push(slot);
+    stack[size] = slot;
+    size += 1;
 }
 
 /* pop */
@@ -61,8 +73,8 @@ template<typename T> T OperandStack::pop() {
 }
 
 template<> jint OperandStack::pop<jint>() {
-    auto value = stack.top().value;
-    stack.pop();
+    size -= 1;
+    auto value = stack[size].value;
     return (jint) value;
 }
 
@@ -95,13 +107,13 @@ template<> jdouble OperandStack::pop<jdouble>() {
 }
 
 template<> jobject OperandStack::pop<jobject>() {
-    auto obj = stack.top().obj;
-    stack.pop();
+    size -= 1;
+    auto obj = stack[size].obj;
     return obj;
 }
 
 template<> Slot OperandStack::pop<Slot>() {
-    auto slot = stack.top();
-    stack.pop();
+    size -= 1;
+    auto slot = stack[size];
     return slot;
 }

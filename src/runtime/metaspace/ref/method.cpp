@@ -17,8 +17,8 @@ MethodRef::MethodRef(shared_ptr<ConstantPool> rconstant_pool, const vector<share
 
 shared_ptr<Clazz> MethodRef::resolvedClass() {
     if (clazz == nullptr) {
-        shared_ptr<Clazz> d = constant_pool -> clazz;
-        shared_ptr<Clazz> c = ClassLoader(class_name).loadClass();
+        auto d = constant_pool -> clazz;
+        auto c = ClassLoader(class_name).loadClass();
         /* 当类是 public 且同一个 package 内才可以访问 */
         if (!c -> isAccessTo(*d)) {
             ERROR("java.lang.IllegalAccessError: %s", c -> this_name.c_str());
@@ -29,3 +29,23 @@ shared_ptr<Clazz> MethodRef::resolvedClass() {
     return clazz;
 }
 
+shared_ptr<Method> MethodRef::resolvedMethod() {
+    if (method == nullptr) {
+        auto d = constant_pool -> clazz;
+        auto c = resolvedClass();
+        if (c -> haveAccess(ACCESS_INTERFACE)) {
+            ERROR("java.lang.IncompatibleClassChangeError");
+            exit(0);
+        }
+        method = c -> findMethod(name, descriptor);
+        if (method == nullptr) {
+            ERROR("java.lang.NoSuchMethodError");
+            exit(0);
+        }
+        if (!method -> isAccessTo(*d)) {
+            ERROR("java.lang.IllegalAccessError");
+            exit(0);
+        }
+    }
+    return method;
+}

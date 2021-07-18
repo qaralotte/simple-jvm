@@ -17,8 +17,28 @@ shared_ptr<Method> Method::init(shared_ptr<Clazz> _clazz, classfile::method_info
             break;
         }
     }
+    arg_slot_count = getArgSlotCount();
     clazz = _clazz;
     return shared_from_this();
+}
+
+uint32 Method::getArgSlotCount() {
+    uint32 slot_count = 0;
+
+    MethodDescriptor md(descriptor);
+    md.parse();
+
+    for (auto param_type : md.parameter_types) {
+        slot_count += 1;
+        if (param_type == "J" || param_type == "D") {
+            slot_count += 1;
+        }
+    }
+    if (!haveAccess(ACCESS_STATIC)) {
+        slot_count += 1;
+    }
+
+    return slot_count;
 }
 
 vector<shared_ptr<Method>> Method::arrayOf(shared_ptr<Clazz> _clazz, vector<classfile::method_info> cmethods) {

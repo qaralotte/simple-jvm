@@ -38,8 +38,10 @@ namespace runtime {
         shared_ptr<Clazz> init(classfile::ClassFile);
         bool haveAccess(uint16);
         string getPackageName();
-        shared_ptr<Method> getStaticMethod(string, string);
         shared_ptr<Method> getMainMethod();
+        shared_ptr<Method> findMethod(string, string, vector<uint16> = {});
+        shared_ptr<Method> findMethodInClass(string, string, vector<uint16> = {});
+        shared_ptr<Method> findMethodInInterface(string, string, vector<uint16> = {});
     public:
         bool isAccessTo(Clazz);
         bool isAssignFrom(Clazz);

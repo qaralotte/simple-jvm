@@ -13,6 +13,7 @@ typedef int64_t jlong;
 typedef float jfloat;
 typedef double jdouble;
 typedef uint16_t jchar;
+typedef void jvoid;
 typedef string jstring;
 
 typedef unsigned int uint;

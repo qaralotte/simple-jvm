@@ -15,7 +15,9 @@ namespace opcode {
         uint pc;
         shared_ptr<runtime::JVMThread> thread;
     public:
+        Reader() = default;
         Reader(shared_ptr<runtime::JVMThread> _thread, vector<classfile::u1> _code) : thread(_thread), code(_code), pc(0) {};
+        Reader(shared_ptr<runtime::JVMThread> _thread, vector<classfile::u1> _code, uint _pc) : thread(_thread), code(_code), pc(_pc) {};
         uint jumpPC(int);
         uint getPC() const;
     public:

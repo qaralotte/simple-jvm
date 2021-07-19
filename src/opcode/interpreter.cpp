@@ -635,6 +635,7 @@ void Interpreter::instanceof() {
 void Interpreter::checkcast() {
     auto index = reader.readShort();
     auto ref = frame.stack.pop<runtime::jobject>();
+    frame.stack.push<runtime::jobject>(ref);
     if (ref == nullptr) {
         frame.stack.push<jint>(0);
         return;

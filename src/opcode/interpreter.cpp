@@ -4,6 +4,7 @@
 #include "include/log.h"
 #include "include/accessflags.h"
 #include "include/descriptor.h"
+#include "include/runtime/loader.h"
 
 #include "include/runtime/metaspace/ref/clazz.h"
 #include "include/runtime/metaspace/ref/field.h"
@@ -12,6 +13,12 @@
 using namespace opcode;
 
 /* 操作码实现方法 */
+
+// 暂时
+void panic(uint code) {
+    ERROR("unknown code: 0x%X", code);
+    exit(0);
+}
 
 /* 常量 */
 void Interpreter::nop() {
@@ -67,6 +74,21 @@ template<typename T> void Interpreter::load() {
     frame.stack.push<T>(value);
 }
 
+template<typename T> void Interpreter::aload() {
+    auto index = frame.stack.pop<jint>();
+    auto array = frame.stack.pop<runtime::jobject>();
+    if (array == nullptr) {
+        ERROR("java.lang.NullPointerException");
+        exit(0);
+    }
+    auto data = array -> data;
+    if (index < 0 || index >= data.size()) {
+        ERROR("ArrayIndexOutOfBoundsException");
+        exit(0);
+    }
+    frame.stack.push<T>(any_cast<T>(data[index]));
+}
+
 template<typename T> void Interpreter::loadn(uint index) {
     auto value = frame.locals.get<T>(index);
     frame.stack.push<T>(value);
@@ -76,6 +98,22 @@ template<typename T> void Interpreter::loadn(uint index) {
 template<typename T> void Interpreter::store() {
     auto value = frame.stack.pop<T>();
     frame.locals.set<T>(reader.readByte(), value);
+}
+
+template<typename T> void Interpreter::astore() {
+    auto val = frame.stack.pop<T>();
+    auto index = frame.stack.pop<jint>();
+    auto array = frame.stack.pop<runtime::jobject>();
+    if (array == nullptr) {
+        ERROR("java.lang.NullPointerException");
+        exit(0);
+    }
+    auto &data = array -> data;
+    if (index < 0 || index >= data.size()) {
+        ERROR("ArrayIndexOutOfBoundsException");
+        exit(0);
+    }
+    data[index] = val;
 }
 
 template<typename T> void Interpreter::storen(uint index) {
@@ -90,13 +128,26 @@ void Interpreter::pop(uint count) {
     }
 }
 
-void Interpreter::dup(uint count) {
-    vector<runtime::Slot> slots;
-    for (int i = 0; i < count; ++i) {
-        slots.push_back(frame.stack.pop<runtime::Slot>());
+void Interpreter::dup_x(uint dupn, uint xn) {
+    vector<runtime::Slot> dup_slots;
+    vector<runtime::Slot> x_slots;
+    for (int i = 0; i < dupn; ++i) {
+        dup_slots.push_back(frame.stack.pop<runtime::Slot>());
     }
-    for (int i = 0; i < count * 2; ++i) {
-        frame.stack.push<runtime::Slot>(slots[i % count]);
+    if (xn > 0) {
+        for (int i = 0; i < xn + 1; ++i) {
+            dup_slots.push_back(frame.stack.pop<runtime::Slot>());
+        }
+        for (auto iter = dup_slots.rbegin(); iter != dup_slots.rend(); ++iter) {
+            frame.stack.push<runtime::Slot>(*iter);
+        }
+        for (auto iter = x_slots.rbegin(); iter != x_slots.rend(); ++iter) {
+            frame.stack.push<runtime::Slot>(*iter);
+        }
+    } else {
+        for (int i = 0; i < dupn * 2; ++i) {
+            frame.stack.push<runtime::Slot>(dup_slots[dup_slots.size() - 1 - (i % dupn)]);
+        }
     }
 }
 
@@ -220,7 +271,7 @@ template<typename T> void Interpreter::_xor() {
 
 template<typename T> void Interpreter::inc() {
     auto index = reader.readByte();
-    auto inc = reader.readByte();
+    auto inc = (jint) reader.readByte();
     auto value = frame.locals.get<T>(index);
     value += inc;
     frame.locals.set<T>(index, value);
@@ -267,6 +318,33 @@ template<typename T> void Interpreter::if_cmp(function<bool(T, T)> expr) {
 void Interpreter::_goto() {
     jshort offset = reader.readShort();
     reader.jumpPC(offset);
+}
+
+void Interpreter::tableswitch() {
+    reader.skipPadding(); // 0-3 padding
+    auto default_offset = reader.readInt();
+    auto low = reader.readInt();
+    auto high = reader.readInt();
+    auto jump_offsets = reader.readInts(high - low + 1);
+    auto index = frame.stack.pop<jint>();
+    auto offset = index >= low && index <= high ? jump_offsets[index - low] : default_offset;
+    reader.jumpPC(offset);
+}
+
+void Interpreter::lookupswitch() {
+    reader.skipPadding(); // 0-3 padding
+    auto default_offset = reader.readInt();
+    auto npairs = reader.readInt();
+    auto match_offsets = reader.readInts(npairs * 2);
+    auto key = frame.stack.pop<jint>();
+    for (jint i = 0; i < npairs * 2; i += 2) {
+        if (match_offsets[i] == key) {
+            auto offset = match_offsets[i + 1];
+            reader.jumpPC(offset);
+            return;
+        }
+    }
+    reader.jumpPC(default_offset);
 }
 
 template<typename T> void Interpreter::_return() {
@@ -368,7 +446,7 @@ void Interpreter::getfield() {
     }
     auto ref = frame.stack.pop<runtime::jobject>();
     if (ref == nullptr) {
-        ERROR("java.lang.NullPointerException: %s", ref -> clazz.this_name.c_str());
+        ERROR("java.lang.NullPointerException: %s", ref -> clazz -> this_name.c_str());
     }
     auto descriptor = field -> descriptor;
     auto slot_id = field -> slot_id;
@@ -416,7 +494,7 @@ void Interpreter::putfield() {
     auto slots = clazz -> static_vars;
     auto isnull = [](runtime::jobject ref) {
         if (ref == nullptr) {
-            ERROR("java.lang.NullPointerException: %s", ref -> clazz.this_name.c_str());
+            ERROR("java.lang.NullPointerException: %s", ref -> clazz -> this_name.c_str());
         }
     };
     if (descriptor == DESC_BOOLEAN ||
@@ -496,13 +574,13 @@ void Interpreter::invokevirtual() {
     if (method -> haveAccess(ACCESS_PROTECTED) &&
         *method -> clazz -> super_class == *current_clazz &&
         method -> clazz -> getPackageName() == current_clazz -> getPackageName() &&
-        ref -> clazz != *current_clazz &&
-        !ref -> clazz .isSubClassOf(*current_clazz)) {
+        *ref -> clazz != *current_clazz &&
+        !ref -> clazz -> isSubClassOf(*current_clazz)) {
         ERROR("java.lang.IllegalAccessError");
         exit(0);
     }
 
-    auto method_invoked = ref -> clazz.findMethod(method_ref -> name, method_ref -> descriptor);
+    auto method_invoked = ref -> clazz -> findMethod(method_ref -> name, method_ref -> descriptor);
     if (method_invoked == nullptr || method_invoked -> haveAccess(ACCESS_ABSTRACT)) {
         ERROR("java.lang.AbstractMethodError");
         exit(0);
@@ -535,8 +613,8 @@ void Interpreter::invokespecial() {
     if (method -> haveAccess(ACCESS_PROTECTED) &&
         *method -> clazz -> super_class == *current_clazz &&
             method -> clazz -> getPackageName() == current_clazz -> getPackageName() &&
-        ref -> clazz != *current_clazz &&
-        !ref -> clazz.isSubClassOf(*current_clazz)) {
+        *ref -> clazz != *current_clazz &&
+        !ref -> clazz -> isSubClassOf(*current_clazz)) {
         ERROR("java.lang.IllegalAccessError");
         exit(0);
     }
@@ -584,12 +662,12 @@ void Interpreter::invokeinterface() {
         ERROR("java.lang.NullPointerException");
         exit(0);
     }
-    if (ref -> clazz.isImplementOf(*method_ref -> resolvedClass())) {
+    if (ref -> clazz -> isImplementOf(*method_ref -> resolvedClass())) {
         ERROR("java.lang.IncompatibleClassChangeError");
         exit(0);
     }
 
-    auto method_invoked = ref -> clazz.findMethod(method_ref -> name, method_ref -> descriptor);
+    auto method_invoked = ref -> clazz -> findMethod(method_ref -> name, method_ref -> descriptor);
     if (method_invoked == nullptr || method_invoked -> haveAccess(ACCESS_ABSTRACT)) {
         ERROR("java.lang.AbstractMethodError");
         exit(0);
@@ -610,8 +688,46 @@ void Interpreter::_new() {
         ERROR("java.lang.InstantiationError: %s", clazz -> this_name.c_str());
         exit(0);
     }
-    runtime::Object ref(*clazz, runtime::VariableTable(clazz -> instance_slot_count));
+    runtime::Object ref(clazz, runtime::VariableTable(clazz -> instance_slot_count));
     frame.stack.push<runtime::jobject>(runtime::make_jobject(ref));
+}
+
+void Interpreter::newarray() {
+    auto atype = reader.readByte();
+    auto length = frame.stack.pop<jint>();
+    if (length < 0) {
+        ERROR("java.lang.NegativeArraySizeException");
+        exit(0);
+    }
+    auto clazz = frame.method -> clazz;
+    auto array_class = runtime::ClassLoader(clazz -> this_name).loadPrimtiveArrayClass(atype);
+    auto array = array_class -> initArray(length);
+    frame.stack.push<runtime::jobject>(array);
+}
+
+void Interpreter::anewarray() {
+    auto index = reader.readShort();
+    auto constant_pool = frame.method -> clazz -> constant_pool -> constants;
+    auto class_ref = static_pointer_cast<runtime::ClassRef>(constant_pool[index]);
+    auto clazz = class_ref -> resolvedClass();
+    auto length = frame.stack.pop<jint>();
+    if (length < 0) {
+        ERROR("java.lang.NegativeArraySizeException");
+        exit(0);
+    }
+    auto array_class = clazz -> toArray();
+    auto array = array_class -> initArray(length);
+    frame.stack.push<runtime::jobject>(array);
+}
+
+void Interpreter::arraylength() {
+    auto array = frame.stack.pop<runtime::jobject>();
+    if (array == nullptr) {
+        ERROR("java.lang.NullPointerException");
+        exit(0);
+    }
+    auto length = array -> data.size();
+    frame.stack.push<jint>(length);
 }
 
 void Interpreter::instanceof() {
@@ -649,6 +765,103 @@ void Interpreter::checkcast() {
     }
 }
 
+/* 扩展 */
+void Interpreter::wide() {
+    auto opcode = reader.readByte();
+    switch (opcode) {
+        case 0x15: { // iload
+            auto value = frame.locals.get<jint>(reader.readShort());
+            frame.stack.push<jint>(value);
+            break;
+        }
+        case 0x16: { // iload
+            auto value = frame.locals.get<jlong>(reader.readShort());
+            frame.stack.push<jlong>(value);
+            break;
+        }
+        case 0x17: { // fload
+            auto value = frame.locals.get<jfloat>(reader.readShort());
+            frame.stack.push<jfloat>(value);
+            break;
+        }
+        case 0x18: { // dload
+            auto value = frame.locals.get<jdouble>(reader.readShort());
+            frame.stack.push<jdouble>(value);
+            break;
+        }
+        case 0x19: { // aload
+            auto value = frame.locals.get<runtime::jobject>(reader.readShort());
+            frame.stack.push<runtime::jobject>(value);
+            break;
+        }
+        case 0x36: { // istore
+            auto value = frame.stack.pop<jint>();
+            frame.locals.set<jint>(reader.readShort(), value);
+            break;
+        }
+        case 0x37: { // lstore
+            auto value = frame.stack.pop<jlong>();
+            frame.locals.set<jlong>(reader.readShort(), value);
+            break;
+        }
+        case 0x38: { // fstore
+            auto value = frame.stack.pop<jfloat>();
+            frame.locals.set<jfloat>(reader.readShort(), value);
+            break;
+        }
+        case 0x39: { // dstore
+            auto value = frame.stack.pop<jdouble>();
+            frame.locals.set<jdouble>(reader.readShort(), value);
+            break;
+        }
+        case 0x3A: { // astore
+            auto value = frame.stack.pop<runtime::jobject>();
+            frame.locals.set<runtime::jobject>(reader.readShort(), value);
+            break;
+        }
+        case 0x84: { // iinc
+            auto index = reader.readShort();
+            auto inc = (jint) reader.readShort();
+            auto value = frame.locals.get<jint>(index);
+            value += inc;
+            frame.locals.set<jint>(index, value);
+        }
+        case 0xA9: { // ret
+            panic(opcode);
+        }
+    }
+}
+
+void Interpreter::multianewarray() {
+    auto index = reader.readShort();
+    auto dimensions = reader.readByte();
+    auto constant_pool = frame.method -> clazz -> constant_pool -> constants;
+    auto class_ref = static_pointer_cast<runtime::ClassRef>(constant_pool[index]);
+    auto clazz = class_ref -> resolvedClass();
+    vector<jint> lengths(dimensions);
+    for (int i = dimensions - 1; i >= 0; --i) {
+        lengths[i] = frame.stack.pop<jint>();
+        if (lengths[i] < 0) {
+            ERROR("java.lang.NegativeArraySizeException");
+            exit(0);
+        }
+    }
+    auto array = runtime::Object::newMultiDimensionArray(lengths, clazz);
+    frame.stack.push<runtime::jobject>(array);
+}
+
+void Interpreter::ifnull(bool real) {
+    auto offset = reader.readShort();
+    auto ref = frame.stack.pop<runtime::jobject>();
+    if ((ref == nullptr) == real) {
+        reader.jumpPC(offset);
+    }
+}
+
+void Interpreter::goto_w() {
+    auto offset = reader.readInt();
+    reader.jumpPC(offset);
+}
 
 // 非虚拟机规范内的函数
 void Interpreter::invokemethod(shared_ptr<runtime::Method> method) {
@@ -664,12 +877,6 @@ void Interpreter::invokemethod(shared_ptr<runtime::Method> method) {
     }
 
     thread -> push(newframe);
-}
-
-// 暂时
-void panic(uint code) {
-    ERROR("unknown code: 0x%X", code);
-    exit(0);
 }
 
 void Interpreter::execute(uint code) {
@@ -719,14 +926,14 @@ void Interpreter::execute(uint code) {
     if (code == 0x2B) loadn<runtime::jobject>(1);
     if (code == 0x2C) loadn<runtime::jobject>(2);
     if (code == 0x2D) loadn<runtime::jobject>(3);
-    if (code == 0x2E) panic(code); // {}
-    if (code == 0x2F) panic(code); // {}
-    if (code == 0x30) panic(code); // {}
-    if (code == 0x31) panic(code); // {}
-    if (code == 0x32) panic(code); // {}
-    if (code == 0x33) panic(code); // {}
-    if (code == 0x34) panic(code); // {}
-    if (code == 0x35) panic(code); // {}
+    if (code == 0x2E) aload<jint>();
+    if (code == 0x2F) aload<jlong>();
+    if (code == 0x30) aload<jfloat>();
+    if (code == 0x31) aload<jdouble>();
+    if (code == 0x32) aload<runtime::jobject>();
+    if (code == 0x33) aload<jbyte>();
+    if (code == 0x34) aload<jchar>();
+    if (code == 0x35) aload<jshort>();
     if (code == 0x36) store<jint>();
     if (code == 0x37) store<jlong>();
     if (code == 0x38) store<jfloat>();
@@ -752,22 +959,22 @@ void Interpreter::execute(uint code) {
     if (code == 0x4C) storen<runtime::jobject>(1);
     if (code == 0x4D) storen<runtime::jobject>(2);
     if (code == 0x4E) storen<runtime::jobject>(3);
-    if (code == 0x4F) panic(code); // {}
-    if (code == 0x50) panic(code); // {}
-    if (code == 0x51) panic(code); // {}
-    if (code == 0x52) panic(code); // {}
-    if (code == 0x53) panic(code); // {}
-    if (code == 0x54) panic(code); // {}
-    if (code == 0x55) panic(code); // {}
-    if (code == 0x56) panic(code); // {}
+    if (code == 0x4F) astore<jint>();
+    if (code == 0x50) astore<jlong>();
+    if (code == 0x51) astore<jfloat>();
+    if (code == 0x52) astore<jdouble>();
+    if (code == 0x53) astore<runtime::jobject>();
+    if (code == 0x54) astore<jbyte>();
+    if (code == 0x55) astore<jchar>();
+    if (code == 0x56) astore<jshort>();
     if (code == 0x57) pop(1);
     if (code == 0x58) pop(2);
-    if (code == 0x59) dup(1);
-    if (code == 0x5A) panic(code); // {}
-    if (code == 0x5B) panic(code); // {}
-    if (code == 0x5C) dup(2);
-    if (code == 0x5D) panic(code); // {}
-    if (code == 0x5E) panic(code); // {}
+    if (code == 0x59) dup_x(1, 0);
+    if (code == 0x5A) dup_x(1, 1);
+    if (code == 0x5B) dup_x(1, 2);
+    if (code == 0x5C) dup_x(2, 0);
+    if (code == 0x5D) dup_x(2, 1);
+    if (code == 0x5E) dup_x(2, 2);
     if (code == 0x5F) swap();
     if (code == 0x60) add<jint>();
     if (code == 0x61) add<jlong>();
@@ -843,8 +1050,8 @@ void Interpreter::execute(uint code) {
     if (code == 0xA7) _goto();
     if (code == 0xA8) panic(code); // {}
     if (code == 0xA9) panic(code); // {}
-    if (code == 0xAA) panic(code); // {}
-    if (code == 0xAB) panic(code); // {}
+    if (code == 0xAA) tableswitch();
+    if (code == 0xAB) lookupswitch();
     if (code == 0xAC) _return<jint>();
     if (code == 0xAD) _return<jlong>();
     if (code == 0xAE) _return<jfloat>();
@@ -861,23 +1068,23 @@ void Interpreter::execute(uint code) {
     if (code == 0xB9) invokeinterface();
     if (code == 0xBA) panic(code); // {}
     if (code == 0xBB) _new();
-    if (code == 0xBC) panic(code); // {}
-    if (code == 0xBD) panic(code); // {}
-    if (code == 0xBE) panic(code); // {}
+    if (code == 0xBC) newarray();
+    if (code == 0xBD) anewarray();
+    if (code == 0xBE) arraylength();
     if (code == 0xBF) panic(code); // {}
     if (code == 0xC0) checkcast();
     if (code == 0xC1) instanceof();
     if (code == 0xC2) panic(code); // {}
     if (code == 0xC3) panic(code); // {}
-    if (code == 0xC4) panic(code); // {}
-    if (code == 0xC5) panic(code); // {}
-    if (code == 0xC6) panic(code); // {}
-    if (code == 0xC7) panic(code); // {}
-    if (code == 0xC8) panic(code); // {}
+    if (code == 0xC4) wide();
+    if (code == 0xC5) multianewarray();
+    if (code == 0xC6) ifnull(true);
+    if (code == 0xC7) ifnull(false);
+    if (code == 0xC8) goto_w();
     if (code == 0xC9) panic(code); // {}
-    if (code == 0xCA) panic(code); // {}
-    if (code == 0xFE) panic(code); // {}
-    if (code == 0xFF) panic(code); // {}
+    if (code == 0xCA) panic(code); // breakpoint
+    if (code == 0xFE) panic(code); // impdep1
+    if (code == 0xFF) panic(code); // impdep2
     if (code > 0xCA && code < 0xFE) {
         ERROR("unknown code: 0x%X", code);
         exit(0);

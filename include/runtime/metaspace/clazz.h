@@ -17,6 +17,7 @@
 
 namespace runtime {
 
+    struct Object;
     class ClassLoader;
     class Clazz : public enable_shared_from_this<Clazz> {
     public:
@@ -27,15 +28,18 @@ namespace runtime {
         vector<shared_ptr<Field>> fields;
         vector<shared_ptr<Method>> methods;
         shared_ptr<ConstantPool> constant_pool;
-        shared_ptr<ClassLoader> loader; // !ref
         shared_ptr<Clazz> super_class; // !ref
         vector<shared_ptr<Clazz>> interfaces;
         uint instance_slot_count;
         uint static_slot_count;
         VariableTable static_vars;
+        bool init_started;
     public:
         Clazz() = default;
         shared_ptr<Clazz> init(classfile::ClassFile);
+        shared_ptr<Object> initArray(uint);
+        shared_ptr<Clazz> toArray();
+        shared_ptr<Clazz> getComponentClass();
         bool haveAccess(uint16);
         string getPackageName();
         shared_ptr<Method> getMainMethod();
@@ -48,6 +52,7 @@ namespace runtime {
         bool isSubClassOf(Clazz);
         bool isImplementOf(Clazz);
         bool isSubInterfaceOf(Clazz);
+        bool isArray();
     public:
         bool operator==(const Clazz &) const;
         bool operator!=(const Clazz &) const;

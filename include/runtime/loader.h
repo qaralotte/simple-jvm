@@ -10,17 +10,19 @@
 #include "include/runtime/metaspace/clazz.h"
 
 namespace runtime {
-    class ClassLoader {
+    class ClassLoader : public enable_shared_from_this<ClassLoader> {
     private:
         string class_name;
     private:
         void loadNonArrayClass();
+        void loadArrayClass();
         void prepare();
     public:
         static map<string, shared_ptr<Clazz>> class_map;
     public:
         ClassLoader(string _name) : class_name(_name) {};
         shared_ptr<Clazz> loadClass();
+        shared_ptr<Clazz> loadPrimtiveArrayClass(jint);
     };
 }
 

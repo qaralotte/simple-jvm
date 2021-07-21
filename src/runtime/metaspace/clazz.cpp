@@ -1,5 +1,9 @@
 #include "include/runtime/metaspace/clazz.h"
+#include "include/runtime/metaspace/object.h"
+#include "include/runtime/loader.h"
 #include "include/accessflags.h"
+#include "include/descriptor.h"
+#include "include/log.h"
 
 using namespace runtime;
 
@@ -12,6 +16,65 @@ shared_ptr<Clazz> Clazz::init(classfile::ClassFile clazz) {
     methods = Method::arrayOf(shared_from_this(), clazz.methods);
     constant_pool = make_shared<ConstantPool>() -> init(shared_from_this(), clazz.constant_pool);
     return shared_from_this();
+}
+
+shared_ptr<Object> Clazz::initArray(uint length) {
+    if (!isArray()) {
+        ERROR("不是一个数组: %s", this_name.c_str());
+        exit(0);
+    }
+
+    if (this_name == "[Z" || this_name == "[B") {
+        return make_jobject(Object::newArray<jbyte>(shared_from_this(), length));
+    }
+    if (this_name == "[C") {
+        return make_jobject(Object::newArray<jchar>(shared_from_this(), length));
+    }
+    if (this_name == "[S") {
+        return make_jobject(Object::newArray<jshort>(shared_from_this(), length));
+    }
+    if (this_name == "[I") {
+        return make_jobject(Object::newArray<jint>(shared_from_this(), length));
+    }
+    if (this_name == "[J") {
+        return make_jobject(Object::newArray<jlong>(shared_from_this(), length));
+    }
+    if (this_name == "[F") {
+        return make_jobject(Object::newArray<jfloat>(shared_from_this(), length));
+    }
+    if (this_name == "[D") {
+        return make_jobject(Object::newArray<jdouble>(shared_from_this(), length));
+    }
+    return make_jobject(Object::newArray<jobject>(shared_from_this(), length));
+}
+
+shared_ptr<Clazz> Clazz::toArray() {
+    auto class_name = DESC_ARRAY(DESC(this_name));
+    return ClassLoader(class_name).loadClass();
+}
+
+shared_ptr<Clazz> Clazz::getComponentClass() {
+    string component_name;
+    if (this_name[0] == '[') {
+        auto descriptor = this_name.substr(1, this_name.size() - 1);
+        if (descriptor[0] == '[') {
+            component_name = descriptor;
+        } else if (descriptor[0] == 'L') {
+            component_name = descriptor.substr(1, descriptor.size() - 1);
+
+            auto name = DESC_TO_PRIM(descriptor);
+            if (!name.empty()) {
+                component_name = name;
+            }
+        } else {
+            ERROR("不合法的 descriptor: %s", descriptor.c_str());
+            exit(0);
+        }
+    } else {
+        ERROR("%s 不是一个合法的数组", this_name.c_str());
+        exit(0);
+    }
+    return ClassLoader(component_name).loadClass();
 }
 
 bool Clazz::haveAccess(uint16 flag) {
@@ -123,6 +186,11 @@ bool Clazz::isSubInterfaceOf(Clazz d) {
     return false;
 }
 
+bool Clazz::isArray() {
+    return this_name[0] == '[';
+}
+
+#pragma clang diagnostic ignored "-Wtautological-undefined-compare"
 bool Clazz::operator==(const Clazz &other) const {
     if (this == nullptr && &other == nullptr) return true;
     if (this == nullptr || &other == nullptr) return false;

@@ -3,6 +3,7 @@
 #include "include/runtime/metaspace/clazz.h"
 #include "include/accessflags.h"
 #include "include/descriptor.h"
+#include "include/atype.h"
 
 #include "include/log.h"
 
@@ -39,6 +40,19 @@ void ClassLoader::loadNonArrayClass() {
     /* 链接 class */
     // todo verify
     prepare();
+}
+
+void ClassLoader::loadArrayClass() {
+    auto clazz = make_shared<Clazz>();
+    clazz -> access_flags = ACCESS_PUBLIC;
+    clazz -> this_name = class_name;
+    clazz -> init_started = true;
+    clazz -> super_class = ClassLoader("java/lang/Object").loadClass();
+    clazz -> interfaces = {
+            ClassLoader("java/lang/Cloneable").loadClass(),
+            ClassLoader("java/io/Serializable").loadClass(),
+    };
+    ClassLoader::class_map[class_name] = clazz;
 }
 
 void ClassLoader::prepare() {
@@ -103,6 +117,23 @@ shared_ptr<Clazz> ClassLoader::loadClass() {
     if (class_map.find(class_name) != class_map.end()) {
         return class_map[class_name];
     }
-    loadNonArrayClass();
+    if (class_name[0] == '[') loadArrayClass();
+    else loadNonArrayClass();
     return class_map[class_name];
+}
+
+shared_ptr<Clazz> ClassLoader::loadPrimtiveArrayClass(jint atype) {
+    switch (atype) {
+        case ATYPE_BOOLEAN: return ClassLoader("[Z").loadClass();
+        case ATYPE_BYTE: return ClassLoader("[B").loadClass();
+        case ATYPE_CHAR: return ClassLoader("[C").loadClass();
+        case ATYPE_SHORT: return ClassLoader("[S").loadClass();
+        case ATYPE_INT: return ClassLoader("[I").loadClass();
+        case ATYPE_LONG: return ClassLoader("[J").loadClass();
+        case ATYPE_FLOAT: return ClassLoader("[F").loadClass();
+        case ATYPE_DOUBLE: return ClassLoader("[D").loadClass();
+        default:
+            ERROR("错误的atype: %d", atype);
+            exit(0);
+    }
 }

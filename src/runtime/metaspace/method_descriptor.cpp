@@ -1,4 +1,5 @@
 #include "include/runtime/metaspace/method.h"
+#include "include/descriptor.h"
 #include "include/log.h"
 
 using namespace runtime;
@@ -42,9 +43,9 @@ string MethodDescriptor::parseType(char type) {
         case 'V':
             return {type};
         case 'L':
-            return 'L' + parseObject() + ';';
+            return DESC_CLASS(parseObject());
         case '[':
-            return '[' + parseType(nextChar());
+            return DESC_ARRAY(parseType(nextChar()));
         default:
             ERROR("bad descriptor: %s", descriptor.c_str());
             exit(0);

@@ -23,15 +23,17 @@ namespace opcode {
 
         /* 加载 */
         template<typename T> void load();
+        template<typename T> void aload();
         template<typename T> void loadn(uint);
 
         /* 储存 */
         template<typename T> void store();
+        template<typename T> void astore();
         template<typename T> void storen(uint);
 
         /* 栈 */
         void pop(uint);
-        void dup(uint);
+        void dup_x(uint, uint);
         void swap();
 
         /* 数学 */
@@ -59,6 +61,8 @@ namespace opcode {
 
         /* 控制 */
         void _goto();
+        void tableswitch();
+        void lookupswitch();
         template<typename T> void _return();
 
         /* 引用 */
@@ -71,11 +75,21 @@ namespace opcode {
         void invokestatic();
         void invokeinterface();
         void _new();
-        void checkcast();
+        void newarray();
+        void anewarray();
+        void arraylength();
         void instanceof();
+        void checkcast();
+
+        /* 扩展 */
+        void wide();
+        void multianewarray();
+        void ifnull(bool);
+        void goto_w();
     private:
         /* 非虚拟机规范内的函数 */
         void invokemethod(shared_ptr<runtime::Method>);
+        runtime::jobject newMultiDimensionArray();
     public:
         Interpreter(runtime::JVMFrame &_frame, Reader &_reader) : frame(_frame), reader(_reader) {};
         void execute(uint);

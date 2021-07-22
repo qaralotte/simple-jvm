@@ -9,5 +9,5 @@
 
 ## 技术
 
-* 负责解压缩zip: [minizip-ng](https://github.com/zlib-ng/minizip-ng)
+* 负责解压缩zip: [libzip](https://github.com/nih-at/libzip)
 

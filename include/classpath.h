@@ -5,7 +5,7 @@
 #include <vector>
 
 #include "include/std.h"
-#include "include/minizip-ng/unzip.h"
+#include "include/libzip/zip.h"
 
 namespace classpath {
     enum PathType {
@@ -19,7 +19,6 @@ class ClassPath {
 public:
     classpath::PathType type;
     string path;
-    unzFile unz_file;
     string class_name;
     string file_name;
 private:
@@ -28,8 +27,8 @@ private:
 public:
     ClassPath() = default;
     ClassPath(classpath::PathType _type) : type(_type) {};
-    ClassPath(classpath::PathType _type, string _path, unzFile _unz, string _class_name, string _file_name) :
-            type(_type), path(_path), unz_file(_unz), class_name(_class_name), file_name(_file_name) {};
+    ClassPath(classpath::PathType _type, string _path, string _class_name, string _file_name) :
+            type(_type), path(_path), class_name(_class_name), file_name(_file_name) {};
     vector<uchar> read();
 };
 

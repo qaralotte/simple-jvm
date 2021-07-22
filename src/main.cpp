@@ -3,6 +3,8 @@
 
 #include "include/cmd.h"
 #include "include/log.h"
+#include "include/finder.h"
+#include "include/libzip/zip.h"
 
 #include "include/opcode/interpreter.h"
 #include "include/runtime/thread.h"
@@ -33,7 +35,7 @@ __unused void interpret(shared_ptr<runtime::Method> method) {
 
 /* 启动虚拟机 */
 void startJVM() {
-    DEBUG("开始启动 JVM");
+    DEBUG("启动 JVM");
     auto clazz = runtime::ClassLoader("Main").loadClass();
     auto main_method = clazz -> getMainMethod();
     if (main_method != nullptr) {
@@ -41,6 +43,14 @@ void startJVM() {
     } else {
         ERROR("在%s 未找到main方法", clazz -> this_name.c_str());
         exit(0);
+    }
+}
+
+/* 卸载 JVM */
+void destroyJVM() {
+    DEBUG("卸载 JVM");
+    for (auto uzf : classfinder::ClassFinder::unz_jars) {
+        zip_close(uzf.second);
     }
 }
 
@@ -54,8 +64,17 @@ int main(int argc, char *argv[]) {
     }
     Cmd::config(cmd_vec);
 
-    /* 开始启动 JVM */
+    clock_t startTime, endTime;
+    startTime = clock();
+
+    /* 启动 JVM */
     startJVM();
+
+    /* 卸载 JVM */
+    destroyJVM();
+
+    endTime = clock();
+    DEBUG("运行时长: %lfms", (double)(endTime - startTime) / CLOCKS_PER_SEC * 1000);
 
     return 0;
 }

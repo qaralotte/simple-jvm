@@ -564,6 +564,7 @@ void Interpreter::invokevirtual() {
                 exit(0);
             }
             frame.stack.pop<runtime::jobject>();
+            return;
         }
         // ⬆
 

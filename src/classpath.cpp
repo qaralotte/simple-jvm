@@ -2,8 +2,9 @@
 
 #include "include/classpath.h"
 #include "include/log.h"
+#include "include/finder.h"
 
-#include "include/minizip-ng/unzip.h"
+#include "include/libzip/zip.h"
 
 using namespace classpath;
 
@@ -38,42 +39,14 @@ vector<uchar> ClassPath::readInDir() {
 }
 
 vector<uchar> ClassPath::readInJar() {
-    vector<uchar> data;
+    struct zip_stat st;
+    zip_stat_init(&st);
+    zip_stat(classfinder::ClassFinder::unz_jars[path], file_name.c_str(), 0, &st);
 
-    int status = UNZ_OK;
-    unz_file_info file_info;
-    char filename_inzip[256];
-
-    if (unzGetCurrentFileInfo(unz_file, &file_info, filename_inzip, sizeof(filename_inzip), nullptr, 0, nullptr, 0) != MZ_OK) {
-        ERROR("读取%s的%s文件结构时出错", path.c_str(), file_name.c_str());
-        exit(0);
-    }
-    const int BUFFER = 1242880;
-
-    auto buf = (void *) malloc(BUFFER);
-    if (unzOpenCurrentFilePassword(unz_file, nullptr) != UNZ_OK) {
-        ERROR("打开%s的%s文件时出错", path.c_str(), file_name.c_str());
-        exit(0);
-    }
-
-    do {
-        status = unzReadCurrentFile(unz_file, buf, BUFFER);
-        if (status < 0) {
-            ERROR("读取%s的%s文件时出错", path.c_str(), file_name.c_str());
-            exit(0);
-        }
-        // copy the buffer to a string
-        if (status > 0) for (int i = 0; i < (int) status; i++) {
-            data.push_back(*(((char *) buf) + i));
-        }
-    } while (status > 0);
-
-    if (unzCloseCurrentFile(unz_file) != UNZ_OK) {
-        ERROR("关闭%s的%s文件时出错", path.c_str(), file_name.c_str());
-        exit(0);
-    }
-    free(buf);
-    unzClose(unz_file);
+    vector<uchar> data(st.size);
+    zip_file *f = zip_fopen(classfinder::ClassFinder::unz_jars[path], file_name.c_str(), ios::binary);
+    zip_fread(f, data.data(), st.size);
+    zip_fclose(f);
 
     return data;
 }

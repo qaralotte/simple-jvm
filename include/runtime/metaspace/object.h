@@ -16,23 +16,26 @@ namespace runtime {
     public:
         shared_ptr<Clazz> clazz;
         struct {
-            VariableTable field;
-            vector<any> data;
+            VariableTable single_data;    // non-array
+            vector<any> array_data;       // array
         };
     public:
         Object() = default;
-        Object(shared_ptr<Clazz> _clazz, VariableTable _field) : clazz(_clazz), field(_field) {};
+        Object(shared_ptr<Clazz> _clazz) : clazz(_clazz) {};
+        Object(shared_ptr<Clazz> _clazz, VariableTable _single) : clazz(_clazz), single_data(_single) {};
         template<typename T> static Object newArray(shared_ptr<Clazz> _clazz, uint length) {
             Object object;
             object.clazz = _clazz;
-            object.data.resize(length);
+            object.array_data.resize(length);
             for (int i = 0; i < length; ++i) {
-                object.data[i] = T();
+                object.array_data[i] = T();
             }
             return object;
         }
         static shared_ptr<Object> newMultiDimensionArray(vector<jint>, shared_ptr<Clazz>);
         bool isInstanceOf(Clazz);
+        void setRefVal(string, string, shared_ptr<Object>);
+        shared_ptr<Object> getRefVal(string, string);
     public:
         bool operator==(const Object &) const;
         bool operator!=(const Object &) const;

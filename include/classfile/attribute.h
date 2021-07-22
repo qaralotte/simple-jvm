@@ -213,7 +213,7 @@ namespace classfile {
 
     /* 属性结构体 */
     struct attribute_info {
-        jstring name;
+        string name;
         u4 attribute_length;
     };
 

@@ -13,9 +13,9 @@
 namespace runtime {
     struct FieldRef : Constant {
     public:
-        jstring class_name;
-        jstring name;
-        jstring descriptor;
+        string class_name;
+        string name;
+        string descriptor;
         shared_ptr<ConstantPool> constant_pool; // !ref
         shared_ptr<Field> field; // !ref
         shared_ptr<Clazz> clazz; // !ref

@@ -11,8 +11,8 @@
 namespace classfile {
     struct method_info {
         u2 access_flags;
-        jstring name;
-        jstring descriptor;
+        string name;
+        string descriptor;
         vector<shared_ptr<attribute_info>> attributes;
     };
 }

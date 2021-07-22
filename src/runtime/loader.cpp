@@ -1,6 +1,8 @@
 #include "include/runtime/loader.h"
 #include "include/classfile/loader.h"
 #include "include/runtime/metaspace/clazz.h"
+#include "include/runtime/metaspace/object.h"
+#include "include/runtime/metaspace/string.h"
 #include "include/accessflags.h"
 #include "include/descriptor.h"
 #include "include/atype.h"
@@ -101,8 +103,9 @@ void ClassLoader::prepare() {
                     auto val = static_pointer_cast<DoubleConstant>(class_map[class_name] -> constant_pool -> constants[field -> constvalue_index]) -> value;
                     class_map[class_name] -> static_vars.set<jdouble>(field -> slot_id, val);
                 } else if (field -> descriptor == DESC_CLASS("java/lang/String")) {
-                    ERROR("暂未实现 String");
-                    // todo String
+                    auto val = static_pointer_cast<StringConstant>(class_map[class_name] -> constant_pool -> constants[field -> constvalue_index]) -> value;
+                    auto jstr = JString(val).toObject();
+                    class_map[class_name] -> static_vars.set<runtime::jobject>(field -> slot_id, jstr);
                 } else {
                     ERROR("未知的 descriptor: %s", field -> descriptor.c_str());
                     exit(0);

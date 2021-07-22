@@ -30,8 +30,8 @@ namespace runtime {
     class Method : public enable_shared_from_this<Method> {
     public:
         uint16 access_flags;
-        jstring name;
-        jstring descriptor;
+        string name;
+        string descriptor;
         uint16 max_stack;
         uint16 max_locals;
         vector<uint8> code;

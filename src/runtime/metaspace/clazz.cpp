@@ -48,6 +48,10 @@ shared_ptr<Object> Clazz::initArray(uint length) {
     return make_jobject(Object::newArray<jobject>(shared_from_this(), length));
 }
 
+shared_ptr<Object> Clazz::toObject() {
+    return make_jobject(Object(shared_from_this()));
+}
+
 shared_ptr<Clazz> Clazz::toArray() {
     auto class_name = DESC_ARRAY(DESC(this_name));
     return ClassLoader(class_name).loadClass();
@@ -146,16 +150,59 @@ shared_ptr<Method> Clazz::findMethodInInterface(string name, string descriptor, 
     return nullptr;
 }
 
+shared_ptr<Field> Clazz::findField(string name, string descriptor, vector<uint16> accesses) {
+    for (auto c = shared_from_this(); c != nullptr; c = c -> super_class) {
+        for (auto field : c -> fields) {
+            bool have_access = true;
+            if (accesses.size() > 0) {
+                for (auto access : accesses) {
+                    if (!field -> haveAccess(access)) {
+                        have_access = false;
+                        break;
+                    }
+                }
+            }
+            if (have_access) {
+                if (field -> name == name && field -> descriptor == descriptor) return field;
+            }
+        }
+    }
+    return nullptr;
+}
+
 bool Clazz::isAccessTo(Clazz d) {
     return haveAccess(ACCESS_PUBLIC) || getPackageName() == d.getPackageName();
 }
 
 bool Clazz::isAssignFrom(Clazz d) {
     if (*this == d) return true;
-    if (!haveAccess(ACCESS_INTERFACE)) {
-        return d.isSubClassOf(*this);
+
+    if (!isArray()) {
+        if (!haveAccess(ACCESS_INTERFACE)) {
+            if (!d.haveAccess(ACCESS_INTERFACE)) {
+                return d.isSubClassOf(*this);
+            } else {
+                return d.isImplementOf(*this);
+            }
+        } else {
+            if (!d.haveAccess(ACCESS_INTERFACE)) {
+                return d.this_name == "java/lang/Object";
+            } else {
+                return d.isSubInterfaceOf(*this);
+            }
+        }
     } else {
-        return d.isImplementOf(*this);
+        if (!d.isArray()) {
+            if (!d.haveAccess(ACCESS_INTERFACE)) {
+                return d.this_name == "java/lang/Object";
+            } else {
+                return d.this_name == "java/lang/Cloneable";
+            }
+        } else {
+            auto c = getComponentClass();
+            auto dc = d.getComponentClass();
+            return *c == *dc || dc -> isAssignFrom(*c);
+        }
     }
 }
 

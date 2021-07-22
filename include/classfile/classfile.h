@@ -16,9 +16,9 @@ namespace classfile {
     struct ClassFile {
         vector<shared_ptr<cp_info>> constant_pool;
         u2 access_flags;
-        jstring this_class;
-        jstring super_class;
-        vector<jstring> interfaces;
+        string this_class;
+        string super_class;
+        vector<string> interfaces;
         vector<field_info> fields;
         vector<method_info> methods;
         vector<shared_ptr<attribute_info>> attributes;

@@ -12,8 +12,8 @@ namespace runtime {
     class Field : public enable_shared_from_this<Field> {
     public:
         uint16 access_flags;
-        jstring name;
-        jstring descriptor;
+        string name;
+        string descriptor;
         uint slot_id;
         uint constvalue_index;
         shared_ptr<Clazz> clazz = nullptr;

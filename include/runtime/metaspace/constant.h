@@ -43,7 +43,7 @@ namespace runtime {
     };
 
     struct StringConstant : Constant {
-        jstring value;
+        string value;
     };
 
     /* 符号引用 */

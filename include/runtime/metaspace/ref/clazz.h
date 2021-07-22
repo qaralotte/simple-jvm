@@ -12,7 +12,7 @@
 namespace runtime {
     struct ClassRef : Constant {
     public:
-        jstring class_name;
+        string class_name;
         shared_ptr<ConstantPool> constant_pool; // !ref
         shared_ptr<Clazz> clazz; // !ref
     public:

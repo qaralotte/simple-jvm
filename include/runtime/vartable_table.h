@@ -12,11 +12,12 @@ namespace runtime {
 
     class VariableTable {
     private:
-        uint capacity;
+        uint capacity = 0;
+        bool mut = true;
         vector<Slot> slots;
     public:
         VariableTable() = default;
-        explicit VariableTable(uint _capacity) : capacity(_capacity) {slots.resize(capacity);};
+        explicit VariableTable(uint _capacity) : capacity(_capacity), mut(false) {slots.resize(capacity);};
         uint getCapacity() const;
         vector<Slot> getSlots() const;
     public:

@@ -52,6 +52,7 @@ template<typename T> void VariableTable::set(uint, T) {
 }
 
 template<> void VariableTable::set<jint>(uint index, jint value) {
+    if (mut && capacity <= index) slots.resize(index + 1);
     slots[index].value = value;
 }
 
@@ -70,9 +71,11 @@ template<> void VariableTable::set<jdouble>(uint index, jdouble value) {
 }
 
 template<> void VariableTable::set<jobject>(uint index, jobject obj) {
+    if (mut && capacity <= index) slots.resize(index + 1);
     slots[index].obj = obj;
 }
 
 template<> void VariableTable::set<Slot>(uint index, Slot slot) {
+    if (mut && capacity <= index) slots.resize(index + 1);
     slots[index] = slot;
 }

@@ -29,7 +29,7 @@ u4 ClassLoader::readU4() {
 }
 
 /* 读取 (this / super) class并返回class名字 */
-jstring ClassLoader::readClass() {
+string ClassLoader::readClass() {
     u2 class_index = readU2();
     if (class_index == 0) {
         return "java/lang/Object";

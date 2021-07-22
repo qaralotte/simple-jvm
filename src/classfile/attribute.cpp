@@ -9,7 +9,7 @@
 using namespace classfile;
 
 shared_ptr<attribute_info> ClassLoader::readAttribute() {
-    jstring name = ConstantUtils::getConstant<Utf8>(clazz.constant_pool, readU2()) -> value;
+    string name = ConstantUtils::getConstant<Utf8>(clazz.constant_pool, readU2()) -> value;
     u4 attribute_length = readU4();
 
     if (name == "ConstantValue") {

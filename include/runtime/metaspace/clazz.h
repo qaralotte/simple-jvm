@@ -22,9 +22,9 @@ namespace runtime {
     class Clazz : public enable_shared_from_this<Clazz> {
     public:
         uint16 access_flags;
-        jstring this_name;
-        jstring super_name;
-        vector<jstring> interfaces_name;
+        string this_name;
+        string super_name;
+        vector<string> interfaces_name;
         vector<shared_ptr<Field>> fields;
         vector<shared_ptr<Method>> methods;
         shared_ptr<ConstantPool> constant_pool;
@@ -38,6 +38,14 @@ namespace runtime {
         Clazz() = default;
         shared_ptr<Clazz> init(classfile::ClassFile);
         shared_ptr<Object> initArray(uint);
+        template<typename T> shared_ptr<Object> initArrayWithData(T data) {
+            auto ref = initArray(data.size());
+            for (int i = 0; i < data.size(); ++i) {
+                ref -> array_data[i] = data[i];
+            }
+            return ref;
+        }
+        shared_ptr<Object> toObject();
         shared_ptr<Clazz> toArray();
         shared_ptr<Clazz> getComponentClass();
         bool haveAccess(uint16);
@@ -46,6 +54,7 @@ namespace runtime {
         shared_ptr<Method> findMethod(string, string, vector<uint16> = {});
         shared_ptr<Method> findMethodInClass(string, string, vector<uint16> = {});
         shared_ptr<Method> findMethodInInterface(string, string, vector<uint16> = {});
+        shared_ptr<Field> findField(string, string, vector<uint16> = {});
     public:
         bool isAccessTo(Clazz);
         bool isAssignFrom(Clazz);

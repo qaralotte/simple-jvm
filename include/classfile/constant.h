@@ -74,7 +74,7 @@ namespace classfile {
     };
 
     struct Utf8 : cp_info {
-        jstring value;
+        string value;
     };
 
     struct MethodHandle : cp_info {

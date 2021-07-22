@@ -13,9 +13,9 @@
 namespace runtime {
     struct InterfaceMethodRef : Constant {
     public:
-        jstring class_name;
-        jstring name;
-        jstring descriptor;
+        string class_name;
+        string name;
+        string descriptor;
         shared_ptr<ConstantPool> constant_pool;
         shared_ptr<Method> method;
         shared_ptr<Clazz> clazz;

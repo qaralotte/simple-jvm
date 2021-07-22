@@ -1,10 +1,13 @@
 #include <cmath>
+#include <locale>
+#include <codecvt>
 
 #include "include/opcode/interpreter.h"
 #include "include/log.h"
 #include "include/accessflags.h"
 #include "include/descriptor.h"
 #include "include/runtime/loader.h"
+#include "include/runtime/metaspace/string.h"
 
 #include "include/runtime/metaspace/ref/clazz.h"
 #include "include/runtime/metaspace/ref/field.h"
@@ -53,7 +56,9 @@ void Interpreter::ldc(bool wide, bool two) {
             auto val = static_pointer_cast<runtime::FloatConstant>(constant_pool[index]) -> value;
             frame.stack.push<jfloat>(val);
         } else {
-            ERROR("todo: ldc功能未做完"); // todo
+            auto val = static_pointer_cast<runtime::StringConstant>(constant_pool[index]) -> value;
+            auto jstr = runtime::JString(val);
+            frame.stack.push<runtime::jobject>(jstr.toObject());
         }
     } else {
         if (constant_pool[index] -> tag == runtime::LONG) {
@@ -63,7 +68,8 @@ void Interpreter::ldc(bool wide, bool two) {
             auto val = static_pointer_cast<runtime::DoubleConstant>(constant_pool[index]) -> value;
             frame.stack.push<jdouble>(val);
         } else {
-            ERROR("todo: ldc功能未做完"); // todo
+            ERROR("unreached!");
+            exit(0);
         }
     }
 }
@@ -81,7 +87,7 @@ template<typename T> void Interpreter::aload() {
         ERROR("java.lang.NullPointerException");
         exit(0);
     }
-    auto data = array -> data;
+    auto data = array -> array_data;
     if (index < 0 || index >= data.size()) {
         ERROR("ArrayIndexOutOfBoundsException");
         exit(0);
@@ -108,7 +114,7 @@ template<typename T> void Interpreter::astore() {
         ERROR("java.lang.NullPointerException");
         exit(0);
     }
-    auto &data = array -> data;
+    auto &data = array -> array_data;
     if (index < 0 || index >= data.size()) {
         ERROR("ArrayIndexOutOfBoundsException");
         exit(0);
@@ -505,27 +511,27 @@ void Interpreter::putfield() {
         auto val = frame.stack.pop<jint>();
         auto ref = frame.stack.pop<runtime::jobject>();
         isnull(ref);
-        ref -> field.set<jint>(slot_id, val);
+        ref -> single_data.set<jint>(slot_id, val);
     } else if (descriptor == DESC_FLOAT) {
         auto val = frame.stack.pop<jfloat>();
         auto ref = frame.stack.pop<runtime::jobject>();
         isnull(ref);
-        ref -> field.set<jfloat>(slot_id, val);
+        ref -> single_data.set<jfloat>(slot_id, val);
     } else if (descriptor == DESC_LONG) {
         auto val = frame.stack.pop<jlong>();
         auto ref = frame.stack.pop<runtime::jobject>();
         isnull(ref);
-        ref -> field.set<jlong>(slot_id, val);
+        ref -> single_data.set<jlong>(slot_id, val);
     } else if (descriptor == DESC_DOUBLE) {
         auto val = frame.stack.pop<jdouble>();
         auto ref = frame.stack.pop<runtime::jobject>();
         isnull(ref);
-        ref -> field.set<jdouble>(slot_id, val);
+        ref -> single_data.set<jdouble>(slot_id, val);
     } else if (descriptor[0] == DESC_ARRAY_HEAD || descriptor[0] == DESC_CLASS_HEAD) {
         auto val = frame.stack.pop<runtime::jobject>();
         auto ref = frame.stack.pop<runtime::jobject>();
         isnull(ref);
-        ref -> field.set<runtime::jobject>(slot_id, val);
+        ref -> single_data.set<runtime::jobject>(slot_id, val);
     } else {
         ERROR("未知的 descriptor: %s", descriptor.c_str());
         exit(0);
@@ -559,6 +565,14 @@ void Interpreter::invokevirtual() {
                 printf("%f\n", frame.stack.pop<jfloat>());
             } else if (method_ref -> descriptor == "(D)V") {
                 printf("%lf\n", frame.stack.pop<jdouble>());
+            } else if (method_ref -> descriptor == "(Ljava/lang/String;)V") {
+                auto data = frame.stack.pop<runtime::jobject>() -> getRefVal("value", "[C") -> array_data;
+                u16string utf16;
+                for (int i = 0; i < data.size(); ++i) {
+                    utf16.push_back(any_cast<char16_t>(data[i]));
+                }
+                auto raw = wstring_convert<codecvt_utf8_utf16<char16_t>, char16_t>{}.to_bytes(utf16);
+                printf("%s\n", raw.c_str());
             } else {
                 ERROR("println: %s", method_ref -> descriptor.c_str());
                 exit(0);
@@ -727,7 +741,7 @@ void Interpreter::arraylength() {
         ERROR("java.lang.NullPointerException");
         exit(0);
     }
-    auto length = array -> data.size();
+    auto length = array -> array_data.size();
     frame.stack.push<jint>(length);
 }
 

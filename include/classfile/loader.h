@@ -25,7 +25,7 @@ namespace classfile {
         u4 readU4();
     private:
         shared_ptr<cp_info> readConstant(); // impl in constant.cpp
-        jstring readClass();
+        string readClass();
         field_info readField();
         method_info readMethod();
         shared_ptr<attribute_info> readAttribute(); // impl in attribute.cpp

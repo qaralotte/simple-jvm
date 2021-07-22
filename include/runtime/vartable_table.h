@@ -18,7 +18,6 @@ namespace runtime {
     public:
         VariableTable() = default;
         explicit VariableTable(uint _capacity) : capacity(_capacity), mut(false) {slots.resize(capacity);};
-        uint getCapacity() const;
         vector<Slot> getSlots() const;
     public:
         template<typename T> T get(uint);

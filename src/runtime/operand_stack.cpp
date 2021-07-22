@@ -7,10 +7,6 @@ OperandStack::OperandStack(uint _capacity) : capacity(_capacity), size(0) {
     stack.resize(_capacity);
 }
 
-uint OperandStack::getCapacity() {
-    return capacity;
-}
-
 runtime::jobject OperandStack::getRegFromTop(uint n) {
     return stack[size - 1 - n].obj;
 }
@@ -22,6 +18,10 @@ template<typename T> void OperandStack::push(T) {
 }
 
 template<> void OperandStack::push<jint>(jint value) {
+    if (size < 0 && size >= capacity) {
+        ERROR("size (%u) > OperandStack.capacity (%u)", size, capacity);
+        exit(0);
+    }
     Slot slot;
     slot.value = value;
     stack[size] = slot;
@@ -55,6 +55,10 @@ template<> void OperandStack::push<jdouble>(jdouble value) {
 }
 
 template<> void OperandStack::push<jobject>(jobject obj) {
+    if (size < 0 && size >= capacity) {
+        ERROR("size (%u) > OperandStack.capacity (%u)", size, capacity);
+        exit(0);
+    }
     Slot slot;
     slot.obj = obj;
     stack[size] = slot;
@@ -62,6 +66,10 @@ template<> void OperandStack::push<jobject>(jobject obj) {
 }
 
 template<> void OperandStack::push<Slot>(Slot slot) {
+    if (size < 0 && size >= capacity) {
+        ERROR("size (%u) > OperandStack.capacity (%u)", size, capacity);
+        exit(0);
+    }
     stack[size] = slot;
     size += 1;
 }
@@ -73,6 +81,10 @@ template<typename T> T OperandStack::pop() {
 }
 
 template<> jint OperandStack::pop<jint>() {
+    if (size < 0 && size >= capacity) {
+        ERROR("size (%u) > OperandStack.capacity (%u)", size, capacity);
+        exit(0);
+    }
     size -= 1;
     auto value = stack[size].value;
     return (jint) value;
@@ -107,12 +119,20 @@ template<> jdouble OperandStack::pop<jdouble>() {
 }
 
 template<> jobject OperandStack::pop<jobject>() {
+    if (size < 0 && size >= capacity) {
+        ERROR("size (%u) > OperandStack.capacity (%u)", size, capacity);
+        exit(0);
+    }
     size -= 1;
     auto obj = stack[size].obj;
     return obj;
 }
 
 template<> Slot OperandStack::pop<Slot>() {
+    if (size < 0 && size >= capacity) {
+        ERROR("size (%u) > OperandStack.capacity (%u)", size, capacity);
+        exit(0);
+    }
     size -= 1;
     auto slot = stack[size];
     return slot;

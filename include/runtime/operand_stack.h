@@ -18,7 +18,6 @@ namespace runtime {
     public:
         OperandStack() = default;
         explicit OperandStack(uint);
-        uint getCapacity();
         runtime::jobject getRegFromTop(uint);
     public:
         template<typename T> void push(T);

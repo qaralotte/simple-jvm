@@ -4,10 +4,6 @@
 
 using namespace runtime;
 
-uint VariableTable::getCapacity() const {
-    return capacity;
-}
-
 vector<Slot> VariableTable::getSlots() const {
     return slots;
 }
@@ -19,6 +15,10 @@ template<typename T> T VariableTable::get(uint) {
 }
 
 template<> jint VariableTable::get<jint>(uint index) {
+    if (index < 0 && index >= slots.size()) {
+        ERROR("index (%u) > VariableTable.size (%d)", index, slots.size());
+        exit(0);
+    }
     return (jint) slots[index].value;
 }
 
@@ -29,6 +29,10 @@ template<> jlong VariableTable::get<jlong>(uint index) {
 }
 
 template<> jfloat VariableTable::get<jfloat>(uint index) {
+    if (index < 0 && index >= slots.size()) {
+        ERROR("index (%u) > VariableTable.size (%d)", index, slots.size());
+        exit(0);
+    }
     return *(jfloat *)(&slots[index].value);
 }
 
@@ -38,10 +42,18 @@ template<> jdouble VariableTable::get<jdouble>(uint index) {
 }
 
 template<> jobject VariableTable::get<jobject>(uint index) {
+    if (index < 0 && index >= slots.size()) {
+        ERROR("index (%u) > VariableTable.size (%d)", index, slots.size());
+        exit(0);
+    }
     return slots[index].obj;
 }
 
 template<> Slot VariableTable::get<Slot>(uint index) {
+    if (index < 0 && index >= slots.size()) {
+        ERROR("index (%u) > VariableTable.size (%d)", index, slots.size());
+        exit(0);
+    }
     return slots[index];
 }
 
@@ -52,6 +64,10 @@ template<typename T> void VariableTable::set(uint, T) {
 }
 
 template<> void VariableTable::set<jint>(uint index, jint value) {
+    if (index < 0 && index >= slots.size()) {
+        ERROR("index (%u) > VariableTable.size (%d)", index, slots.size());
+        exit(0);
+    }
     if (mut && capacity <= index) slots.resize(index + 1);
     slots[index].value = value;
 }
@@ -72,10 +88,18 @@ template<> void VariableTable::set<jdouble>(uint index, jdouble value) {
 
 template<> void VariableTable::set<jobject>(uint index, jobject obj) {
     if (mut && capacity <= index) slots.resize(index + 1);
+    if (index < 0 && index >= slots.size()) {
+        ERROR("index (%u) > VariableTable.size (%d)", index, slots.size());
+        exit(0);
+    }
     slots[index].obj = obj;
 }
 
 template<> void VariableTable::set<Slot>(uint index, Slot slot) {
     if (mut && capacity <= index) slots.resize(index + 1);
+    if (index < 0 && index >= slots.size()) {
+        ERROR("index (%u) > VariableTable.size (%d)", index, slots.size());
+        exit(0);
+    }
     slots[index] = slot;
 }

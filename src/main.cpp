@@ -11,7 +11,7 @@
 #include "include/runtime/loader.h"
 #include "include/runtime/metaspace/method.h"
 
-__unused void loop(shared_ptr<runtime::JVMThread> thread) {
+void loop(shared_ptr<runtime::JVMThread> thread) {
 
     while (true) {
         auto &frame = thread -> top();
@@ -26,17 +26,26 @@ __unused void loop(shared_ptr<runtime::JVMThread> thread) {
     }
 }
 
-__unused void interpret(shared_ptr<runtime::Method> method) {
+void interpret(shared_ptr<runtime::Method> method) {
     auto thread = runtime::JVMThread().init();
     runtime::JVMFrame frame(thread, method);
+    frame.locals.set(0, Cmd::handleJargs()); // args
     thread -> push(frame);
     loop(thread);
+}
+
+void showHelp() {
+
 }
 
 /* 启动虚拟机 */
 void startJVM() {
     DEBUG("启动 JVM");
-    auto clazz = runtime::ClassLoader("Main").loadClass();
+    if (!Cmd::isSet("main")) {
+        showHelp();
+        return;
+    }
+    auto clazz = runtime::ClassLoader(Cmd::main).loadClass();
     auto main_method = clazz -> getMainMethod();
     if (main_method != nullptr) {
         interpret(main_method);

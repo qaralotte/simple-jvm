@@ -7,6 +7,8 @@
 
 using namespace runtime;
 
+ulong JVMThread::current_stack_memory = 0;
+
 /* 栈帧 */
 JVMFrame::JVMFrame(shared_ptr<JVMThread> _thread, shared_ptr<Method> _method) {
     locals = VariableTable(_method -> max_locals);
@@ -26,8 +28,6 @@ uint JVMFrame::getPC() {
 
 /* 线程 */
 JVMThread::JVMThread() {
-    auto _capacity = Cmd::Xss;
-    capaciry = (_capacity == 0 ? UINT32_MAX : _capacity);
     size = 0;
 }
 
@@ -44,10 +44,8 @@ uint JVMThread::getPC() {
 }
 
 void JVMThread::push(JVMFrame frame) {
-    if (size > capaciry) {
-        ERROR("StackOverflowError: size=%u, capacity=%u", size, capaciry);
-        exit(0);
-    }
+    current_stack_memory += sizeof(frame);
+    JVMThread::checkStackOverflow();
     frames.push(frame);
     size += 1;
 }
@@ -69,4 +67,11 @@ JVMFrame &JVMThread::top() {
 
 bool JVMThread::isEmpty() const {
     return frames.empty();
+}
+
+void JVMThread::checkStackOverflow() {
+    if (current_stack_memory > Cmd::Xss) {
+        ERROR("StackOverflowError: current=%llu, Xss=%llu", current_stack_memory, Cmd::Xss);
+        exit(0);
+    }
 }

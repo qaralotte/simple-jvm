@@ -27,9 +27,10 @@ namespace runtime {
 
     class JVMThread {
     private:
-        uint capaciry;
         uint size;
         stack<JVMFrame> frames;
+    public:
+        static ulong current_stack_memory;
     public:
         JVMThread();
         shared_ptr<JVMThread> init();
@@ -39,6 +40,9 @@ namespace runtime {
         JVMFrame pop();
         JVMFrame &top();
         bool isEmpty() const;
+
+    public:
+        static void checkStackOverflow();
     };
 }
 
